@@ -17,9 +17,14 @@
  * 3. Entity Compatibility Policy (entitySpawnHandler.ts & entityCleaner.ts):
  *    - Replaces modern entity drops (e.g., raw ores to mined ore blocks).
  *    - Removes non-Beta 1.7.3 entities at spawn-time and during periodic radius cleanup.
+ *
+ * Namespace Scoping:
+ *    - Every policy above targets `minecraft:` identifiers only. Content from other namespaces
+ *      (`gun:1911`, `techmod:mob`) is intentionally unaware of Beta 1.7.3 and is never
+ *      converted or removed, so third-party addons keep working alongside Betafied.
  */
 
-import { isBetaEntity } from "./betaRegistry.js";
+import { isBetaEntity, isVanillaId } from "./betaRegistry.js";
 import { normalizeEntityDrop } from "./normalizer.js";
 
 export const ALLOWED_ENTITY_TYPES: Readonly<Set<string>> = Object.freeze(new Set([
@@ -60,7 +65,7 @@ export const BANNED_ITEM_DROP_IDS: Readonly<Set<string>> = Object.freeze(new Set
 ]));
 
 export function isAllowedEntityType(typeId: string): boolean {
-    return isBetaEntity(typeId);
+    return !isVanillaId(typeId) || isBetaEntity(typeId);
 }
 
 export function isBannedItemDrop(itemId: string): boolean {
@@ -74,7 +79,7 @@ export interface EntityCompatibilityAssessment {
 }
 
 export function assessEntityCompatibility(typeId: string, droppedItemTypeId?: string): EntityCompatibilityAssessment {
-    if (!ALLOWED_ENTITY_TYPES.has(typeId)) {
+    if (isVanillaId(typeId) && !ALLOWED_ENTITY_TYPES.has(typeId)) {
         return { allowed: false, reason: "disallowed_type" };
     }
     if (typeId === "minecraft:item" && droppedItemTypeId && BANNED_ITEM_DROP_IDS.has(droppedItemTypeId)) {
@@ -290,7 +295,7 @@ export const BLOCK_BULK_REPLACEMENTS: readonly [string, string][] = [
     ["minecraft:budding_amethyst", "minecraft:stone"],
     ["minecraft:dripstone_block", "minecraft:stone"],
     ["minecraft:reinforced_deepslate", "minecraft:bedrock"],
-    
+
     ["minecraft:deepslate_iron_ore", "minecraft:iron_ore"],
     ["minecraft:deepslate_gold_ore", "minecraft:gold_ore"],
     ["minecraft:deepslate_copper_ore", "minecraft:stone"],
@@ -342,15 +347,15 @@ export const BLOCK_BULK_REPLACEMENTS: readonly [string, string][] = [
     ["minecraft:nether_gold_ore", "minecraft:netherrack"],
     ["minecraft:ancient_debris", "minecraft:netherrack"],
     ["minecraft:soul_soil", "minecraft:soul_sand"],
-    
-    ["minecraft:magma_block", "minecraft:netherrack"], 
+
+    ["minecraft:magma_block", "minecraft:netherrack"],
     ["minecraft:packed_ice", "minecraft:ice"],
     ["minecraft:blue_ice", "minecraft:ice"],
     ["minecraft:prismarine", "minecraft:stone"],
     ["minecraft:dark_prismarine", "minecraft:stone"],
     ["minecraft:sea_lantern", "minecraft:glowstone"],
     ["minecraft:melon_block", "minecraft:air"],
-    
+
     ["minecraft:mangrove_planks", "minecraft:planks"],
     ["minecraft:cherry_planks", "minecraft:planks"],
     ["minecraft:bamboo_planks", "minecraft:planks"],

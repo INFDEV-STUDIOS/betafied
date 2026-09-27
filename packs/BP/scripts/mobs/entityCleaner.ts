@@ -1,6 +1,6 @@
 import { world, ItemStack, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
-import { isBetaEntity } from "../core/betaRegistry.js";
+import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
 import { normalizeEntityDrop } from "../core/normalizer.js";
 import { tickManager } from "../core/tickManager.js";
 
@@ -28,7 +28,7 @@ export function* cleanerJob(): Generator<void, void, unknown> {
             for (const ent of entities) {
                 if (!ent.isValid) continue;
 
-                if (!isBetaEntity(ent.typeId)) {
+                if (isVanillaId(ent.typeId) && !isBetaEntity(ent.typeId)) {
                     ent.remove();
                 } else if (ent.typeId === "minecraft:item") {
                     const itemComp = ent.getComponent(EntityComponentTypes.Item);

@@ -1,6 +1,6 @@
 import { world, system, ItemStack, Entity, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
-import { isBetaEntity } from "../core/betaRegistry.js";
+import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
 import { normalizeEntityDrop } from "../core/normalizer.js";
 import { eventBus } from "../core/eventBus.js";
 
@@ -131,7 +131,7 @@ eventBus.onEntitySpawn((event) => {
             return;
         }
 
-        if (!isBetaEntity(typeId)) {
+        if (isVanillaId(typeId) && !isBetaEntity(typeId)) {
             entity.remove();
         }
 

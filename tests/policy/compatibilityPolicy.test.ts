@@ -140,6 +140,13 @@ describe("Compatibility Policy - Pure Unit Tests", () => {
             assert.equal(isBannedItemDrop("minecraft:iron_ingot"), false);
         });
 
+        it("trusts entities and item drops owned by other namespaces", () => {
+            assert.equal(isAllowedEntityType("gun:turret"), true);
+            assert.equal(isAllowedEntityType("techmod:sentinel"), true);
+            assert.deepEqual(assessEntityCompatibility("gun:turret"), { allowed: true });
+            assert.deepEqual(assessEntityCompatibility("minecraft:item", "gun:bullet"), { allowed: true });
+        });
+
         it("assesses entity compatibility with detailed reasons", () => {
             assert.deepEqual(assessEntityCompatibility("minecraft:zombie"), { allowed: true });
             assert.deepEqual(assessEntityCompatibility("minecraft:drowned"), {

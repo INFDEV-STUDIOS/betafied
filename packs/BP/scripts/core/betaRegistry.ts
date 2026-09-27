@@ -4,6 +4,8 @@
  * Defines the finite, authentic universe of Minecraft Beta 1.7.3 entities, items, and blocks.
  * Used by cleaners, spawn handlers, and inventory managers to invert filtering:
  * instead of fragile modern blacklists, everything not explicitly recognized here is normalized or removed.
+ *
+ * Inversion only ever applies to the vanilla namespace — see `isVanillaId`.
  */
 
 export const BETA_ENTITY_TYPES: Readonly<Set<string>> = Object.freeze(new Set([
@@ -91,10 +93,26 @@ export const MOD_NAMESPACES: ReadonlySet<string> = Object.freeze(new Set([
     "betafied"
 ]));
 
+export const VANILLA_NAMESPACE = "minecraft";
+
+function getNamespace(typeId: string): string | undefined {
+    const separator = typeId.indexOf(":");
+    if (separator <= 0) return undefined;
+    return typeId.slice(0, separator);
+}
+
 export function isModItem(itemId: string): boolean {
-    const separator = itemId.indexOf(":");
-    if (separator <= 0) return false;
-    return MOD_NAMESPACES.has(itemId.slice(0, separator));
+    const namespace = getNamespace(itemId);
+    return namespace !== undefined && MOD_NAMESPACES.has(namespace);
+}
+
+/**
+ * Every destructive policy in Betafied (removal, conversion, drop rewriting, mob culling)
+ * exists to undo Mojang's modern content. Identifiers from any other namespace belong to
+ * a third-party addon, so gatekeepers must recognize them and leave them exactly as shipped.
+ */
+export function isVanillaId(typeId: string): boolean {
+    return getNamespace(typeId) === VANILLA_NAMESPACE;
 }
 
 export const BETA_BLOCK_IDS: Readonly<Set<string>> = Object.freeze(new Set([

@@ -8,6 +8,7 @@ import {
 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError } from "../core/errorReporter.js";
+import { isVanillaId } from "../core/betaRegistry.js";
 
 const CEILING_RESTRICTED = Object.freeze(new Set([
     "minecraft:stone_button",
@@ -68,7 +69,7 @@ function validateBlockInteraction(event: PlayerInteractWithBlockBeforeEvent): vo
 }
 
 function preventWaterlogging(block: Block | undefined): void {
-    if (!block) return;
+    if (!block || !isVanillaId(block.typeId)) return;
     try {
         if (block.isWaterlogged) {
             block.setWaterlogged(false);

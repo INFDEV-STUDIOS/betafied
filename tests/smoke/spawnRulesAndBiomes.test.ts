@@ -45,15 +45,29 @@ describe("Bedrock Natural Spawning Contract - Spawn Rules & Biome Integrity", ()
         }
     });
 
-    it("verifies spawn rules never use invalid grass_block identifier", () => {
+    it("verifies spawn rules only filter on block ids vanilla uses", () => {
+        // The 51 vanilla spawn_rules files only ever filter on these four ids. grass_block is a
+        // real block (it is the command-facing name since 1.20.70) but vanilla never uses it here,
+        // so a rule that does is filtering on something the spawn engine has no sample data for.
+        const VANILLA_FILTERS = new Set([
+            "minecraft:grass",
+            "minecraft:sand",
+            "minecraft:ice",
+            "minecraft:clay"
+        ]);
+
         const ruleFiles = readdirSync(spawnRulesDir).filter(f => f.endsWith(".json"));
 
         for (const file of ruleFiles) {
             const raw = readFileSync(resolve(spawnRulesDir, file), "utf-8");
-            assert.ok(
-                !raw.includes("minecraft:grass_block"),
-                `${file} uses invalid block filter 'minecraft:grass_block' (Bedrock spawn engine requires 'minecraft:grass')`
-            );
+            const declared = [...raw.matchAll(/"minecraft:spawns_on_block_filter":\s*"([^"]+)"/g)].map(m => m[1]);
+
+            for (const id of declared) {
+                assert.ok(
+                    VANILLA_FILTERS.has(id),
+                    `${file} filters on '${id}', which no vanilla spawn rule uses`
+                );
+            }
         }
     });
 

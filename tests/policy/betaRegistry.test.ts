@@ -7,7 +7,8 @@ import {
     isBetaEntity,
     isBetaItem,
     isBetaBlock,
-    isModItem
+    isModItem,
+    isVanillaId
 } from "../../packs/BP/scripts/core/betaRegistry.js";
 
 describe("Canonical Beta 1.7.3 Registry Policy", () => {
@@ -128,6 +129,14 @@ describe("Canonical Beta 1.7.3 Registry Policy", () => {
             assert.equal(isModItem("minecraft:crafting_table"), false);
             assert.equal(isModItem("minecraft:stone"), false);
             assert.equal(isModItem("crafting_table"), false);
+        });
+
+        it("scopes destructive policies to the vanilla namespace", () => {
+            assert.equal(isVanillaId("minecraft:stone"), true);
+            assert.equal(isVanillaId("minecraft:netherite_sword"), true);
+            assert.equal(isVanillaId("gun:1911"), false);
+            assert.equal(isVanillaId("bh:fence"), false);
+            assert.equal(isVanillaId("crafting_table"), false);
         });
 
         it("allows Beta 1.7.3 maps despite the modern empty_map id split", () => {

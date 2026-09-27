@@ -10,7 +10,7 @@ import {
 } from "@minecraft/server";
 import { isInventoryExempt } from "./permissions.js";
 import { reportError } from "./errorReporter.js";
-import { isBetaItem } from "./betaRegistry.js";
+import { isBetaItem, isVanillaId } from "./betaRegistry.js";
 import { normalizeItem, isStoneCompound } from "./normalizer.js";
 import { tickManager } from "./tickManager.js";
 import { eventBus } from "./eventBus.js";
@@ -176,6 +176,10 @@ function preserveDurability(sourceItem: ItemStack, targetItem: ItemStack): void 
 
 export function evaluateItemAction(item: ItemStack): ItemNormalizationAction {
     const id = item.typeId;
+
+    if (!isVanillaId(id)) {
+        return { type: "keep" };
+    }
 
     if (id === "minecraft:bow") {
         const replacement = new ItemStack("bh:bow", item.amount);

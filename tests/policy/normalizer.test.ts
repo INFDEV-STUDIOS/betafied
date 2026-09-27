@@ -28,6 +28,20 @@ describe("Heuristic Inverse Normalizer", () => {
             }
         });
 
+        it("leaves third-party namespace content untouched", () => {
+            const modded = [
+                "gun:1911",
+                "gun:bullet",
+                "gun:deepslate",
+                "gun:copper_ingot",
+                "techmod:rotten_flesh",
+                "techmod:cherry_planks"
+            ];
+            for (const item of modded) {
+                assert.deepEqual(normalizeItem(item), { action: "keep" }, `Expected ${item} to be left to its own addon`);
+            }
+        });
+
         it("converts modern wood items to authentic oak equivalents via pattern heuristics", () => {
             assert.deepEqual(normalizeItem("minecraft:cherry_planks"), { action: "convert", targetId: "minecraft:oak_planks" });
             assert.deepEqual(normalizeItem("minecraft:mangrove_planks"), { action: "convert", targetId: "minecraft:oak_planks" });
@@ -84,6 +98,11 @@ describe("Heuristic Inverse Normalizer", () => {
             assert.deepEqual(normalizeBlock("minecraft:crimson_nylium"), { action: "convert", targetId: "minecraft:netherrack" });
             assert.deepEqual(normalizeBlock("minecraft:shroomlight"), { action: "convert", targetId: "minecraft:netherrack" });
         });
+
+        it("leaves modded blocks out of the scrubber heuristic", () => {
+            assert.deepEqual(normalizeBlock("techmod:deepslate"), { action: "keep" });
+            assert.deepEqual(normalizeBlock("techmod:tuff"), { action: "keep" });
+        });
     });
 
     describe("Entity Drop Normalization", () => {
@@ -96,6 +115,12 @@ describe("Heuristic Inverse Normalizer", () => {
         it("removes post-Beta monster and animal drops", () => {
             assert.deepEqual(normalizeEntityDrop("minecraft:rotten_flesh"), { action: "remove" });
             assert.deepEqual(normalizeEntityDrop("minecraft:mutton"), { action: "remove" });
+        });
+
+        it("never rewrites drops owned by another addon", () => {
+            assert.deepEqual(normalizeEntityDrop("gun:bullet"), { action: "keep" });
+            assert.deepEqual(normalizeEntityDrop("techmod:raw_iron"), { action: "keep" });
+            assert.deepEqual(normalizeEntityDrop("gun:rotten_flesh"), { action: "keep" });
         });
     });
 });

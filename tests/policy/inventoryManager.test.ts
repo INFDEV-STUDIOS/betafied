@@ -219,6 +219,42 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
         });
     });
 
+    describe("Third-Party Namespace Preservation", () => {
+        it("keeps items from other addons instead of deleting them as unsupported", () => {
+            const modded = ["gun:1911", "gun:bullet", "techmod:deepslate", "techmod:rotten_flesh"];
+            for (const typeId of modded) {
+                assert.equal(evaluateItemAction(new ItemStack(typeId, 1)).type, "keep", `Expected ${typeId} to be preserved`);
+            }
+        });
+
+        it("does not rewrite modded stacks or equipped gear during a sweep", () => {
+            mockPlayers.length = 0;
+            const player = new Player();
+            player.name = "ModdedSteve";
+            player.id = "modded_steve_1";
+
+            const inv = new Container(36);
+            inv.setItem(0, new ItemStack("gun:1911", 1));
+            inv.setItem(1, new ItemStack("gun:ammo", 64));
+            player.setComponent(EntityComponentTypes.Inventory, { container: inv });
+
+            const equippable = new EntityEquippableComponent();
+            equippable.setEquipment(EquipmentSlot.Chest, new ItemStack("techmod:jetpack", 1));
+            player.setComponent(EntityComponentTypes.Equippable, equippable);
+
+            mockPlayers.push(player);
+            processPlayers();
+
+            assert.equal(inv.getItem(0)?.typeId, "gun:1911");
+            assert.equal(inv.getItem(0)?.amount, 1);
+            assert.equal(inv.getItem(1)?.typeId, "gun:ammo");
+            assert.equal(inv.getItem(1)?.amount, 64);
+            assert.equal(equippable.getEquipment(EquipmentSlot.Chest)?.typeId, "techmod:jetpack");
+
+            mockPlayers.length = 0;
+        });
+    });
+
     describe("builder_exempt Tag Exemption & Instant Transition", () => {
         it("preserves modern items while builder_exempt, then sweeps immediately upon removal", () => {
             mockPlayers.length = 0;

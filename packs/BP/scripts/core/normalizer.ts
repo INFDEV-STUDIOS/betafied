@@ -1,4 +1,4 @@
-import { isBetaBlock, isBetaItem } from "./betaRegistry.js";
+import { isBetaBlock, isBetaItem, isVanillaId } from "./betaRegistry.js";
 
 export type NormalizationAction = "keep" | "convert" | "remove";
 
@@ -131,7 +131,11 @@ export function normalizeItem(itemId: string): NormalizationResult {
         return { action: "keep" };
     }
 
-    const bareId = itemId.startsWith("minecraft:") ? itemId.slice(10) : itemId;
+    if (!isVanillaId(itemId)) {
+        return { action: "keep" };
+    }
+
+    const bareId = itemId.slice(10);
 
     return matchCopper(bareId)
         ?? matchStone(bareId)
