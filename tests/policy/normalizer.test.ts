@@ -103,6 +103,13 @@ describe("Heuristic Inverse Normalizer", () => {
             assert.deepEqual(normalizeBlock("techmod:deepslate"), { action: "keep" });
             assert.deepEqual(normalizeBlock("techmod:tuff"), { action: "keep" });
         });
+
+        it("removes every vanilla block with no authentic counterpart (inverse allowlist)", () => {
+            assert.deepEqual(normalizeBlock("minecraft:bee_nest"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:beehive"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:stone_bricks"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:sulfur_spike"), { action: "remove" });
+        });
     });
 
     describe("Entity Drop Normalization", () => {

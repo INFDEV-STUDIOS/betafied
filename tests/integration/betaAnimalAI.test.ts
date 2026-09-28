@@ -1,15 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { world, system, EntityComponentTypes } from "@minecraft/server";
-import {
-    evaluateHopConditions,
-    doHop,
-    animalJumpJob,
-    handleSheepPunch,
-    jumpCooldowns,
-    hurtCooldowns
-} from "../../packs/BP/scripts/mobs/betaAnimalAI.js";
-import { tickManager } from "../../packs/BP/scripts/core/tickManager.js";
+import { system } from "@minecraft/server";
+import { evaluateHopConditions, doHop } from "../../packs/BP/scripts/mobs/betaAnimalAI.js";
 
 describe("Beta Animal AI - Authentic Beta Mobs", () => {
     it("detects obstacle ahead and triggers hop condition", () => {

@@ -1,11 +1,11 @@
 {
-    "format_version": "1.21.50",
+    "format_version": "1.26.50",
     "minecraft:item": {
         "description": {
             "identifier": "bh:birch_log",
             "menu_category": {
                 "category": "nature",
-                "group": "itemGroup.name.log"
+                "group": "minecraft:itemGroup.name.log"
             }
         },
         "components": {
@@ -21,14 +21,9 @@
                 ]
             },
             "minecraft:block_placer": {
-                "block": "minecraft:birch_log",
-                "use_on": [
-                    "minecraft:structure_void"
-                ]
-            },
-            "minecraft:custom_components": [
-                "bh:log_placer"
-            ]
+                "block": "bh:birch_log",
+                "replace_block_item": true
+            }
         }
     }
 }

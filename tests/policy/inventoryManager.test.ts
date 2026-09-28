@@ -55,6 +55,7 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
                 { vanilla: "minecraft:stripped_oak_log", bh: "bh:oak_log" },
                 { vanilla: "minecraft:stripped_spruce_log", bh: "bh:spruce_log" },
                 { vanilla: "minecraft:stripped_birch_log", bh: "bh:birch_log" },
+                { vanilla: "minecraft:chest", bh: "bh:chest" },
                 { vanilla: "minecraft:cobblestone_slab", bh: "bh:cobblestone_slab" },
                 { vanilla: "minecraft:sandstone_slab", bh: "bh:sandstone_slab" },
                 { vanilla: "minecraft:smooth_stone_slab", bh: "bh:stone_slab" },
@@ -90,6 +91,7 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
             inv.setItem(2, new ItemStack("minecraft:oak_slab", 64));
             inv.setItem(3, new ItemStack("minecraft:wood", 64));
             inv.setItem(4, new ItemStack("minecraft:elytra", 1));
+            inv.setItem(5, new ItemStack("minecraft:chest", 8));
             player.setComponent(EntityComponentTypes.Inventory, { container: inv });
 
             mockPlayers.length = 0;
@@ -106,6 +108,8 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
             assert.equal(inv.getItem(3)?.typeId, "bh:oak_log");
             assert.equal(inv.getItem(3)?.amount, 64);
             assert.equal(inv.getItem(4)?.typeId, "minecraft:elytra", "Other creative items must be preserved");
+            assert.equal(inv.getItem(5)?.typeId, "bh:chest", "Chest stacks convert even for exempt players");
+            assert.equal(inv.getItem(5)?.amount, 8, "Converting a chest must keep the stack count");
 
             mockPlayers.length = 0;
         });

@@ -10,6 +10,8 @@
 
 import { world } from "@minecraft/server";
 import type {
+    BlockContainerClosedAfterEvent,
+    BlockContainerOpenedAfterEvent,
     ChatSendAfterEvent,
     EntityDieAfterEvent,
     EntityHitEntityAfterEvent,
@@ -133,6 +135,14 @@ class EventBus {
         return this.subscribe("playerLeave", callback, priority);
     }
 
+    onBlockContainerOpened(callback: (event: BlockContainerOpenedAfterEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("blockContainerOpened", callback, priority);
+    }
+
+    onBlockContainerClosed(callback: (event: BlockContainerClosedAfterEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("blockContainerClosed", callback, priority);
+    }
+
     onPlayerGameModeChange(callback: (event: PlayerGameModeChangeAfterEvent) => void, priority: number = 0): () => void {
         return this.subscribe("playerGameModeChange", callback, priority);
     }
@@ -174,6 +184,8 @@ class EventBus {
         world.afterEvents.playerDimensionChange.subscribe((e) => this.dispatch("playerDimensionChange", e));
         world.afterEvents.playerSpawn.subscribe((e) => this.dispatch("playerSpawn", e));
         world.afterEvents.playerLeave.subscribe((e) => this.dispatch("playerLeave", e));
+        world.afterEvents.blockContainerOpened.subscribe((e) => this.dispatch("blockContainerOpened", e));
+        world.afterEvents.blockContainerClosed.subscribe((e) => this.dispatch("blockContainerClosed", e));
         world.afterEvents.playerGameModeChange.subscribe((e) => this.dispatch("playerGameModeChange", e));
         world.afterEvents.itemStartUse.subscribe((e) => this.dispatch("itemStartUse", e));
         world.afterEvents.itemStopUse.subscribe((e) => this.dispatch("itemStopUse", e));

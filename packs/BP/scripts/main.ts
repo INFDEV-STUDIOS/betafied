@@ -17,7 +17,6 @@ import "./interactions/boatCollision.js";
 import "./interactions/furnaceMinecart.js";
 import "./interactions/instantBonemeal.js";
 import "./interactions/placement.js";
-import "./interactions/structurePlacer.js";
 import "./player/foodAndHealth.js";
 import "./player/playerState.js";
 import "./world/netherSpawnProtection.js";
@@ -34,6 +33,7 @@ import "./mobs/entityCleaner.js";
 import "./mobs/betaAnimalAI.js";
 import "./mobs/nightmares.js";
 import "./world/worldSpawn.js";
+import "./interactions/doubleChest.js";
 
 eventBus.init();
 

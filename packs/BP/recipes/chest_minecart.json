@@ -7,7 +7,7 @@
     "tags": [ "beta_crafting" ],
     "ingredients": [
       {
-        "item": "minecraft:chest"
+        "item": "bh:chest"
       },
       {
         "item": "minecraft:minecart"

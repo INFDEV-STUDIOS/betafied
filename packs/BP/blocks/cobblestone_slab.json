@@ -2,7 +2,7 @@
     "format_version": "1.26.50",
     "minecraft:block": {
         "description": {
-            "identifier": "bh:wooden_slab",
+            "identifier": "bh:cobblestone_slab",
             "menu_category": {
                 "category": "construction",
                 "group": "minecraft:itemGroup.name.slab"
@@ -14,7 +14,7 @@
             },
             "minecraft:material_instances": {
                 "*": {
-                    "texture": "bh_planks_oak",
+                    "texture": "bh_cobblestone",
                     "render_method": "opaque"
                 }
             },
@@ -30,17 +30,13 @@
                 "seconds_to_destroy": 2.0
             },
             "minecraft:destructible_by_explosion": {
-                "explosion_resistance": 3
+                "explosion_resistance": 6
             },
-            "minecraft:flammable": {
-                "catch_chance_modifier": 5,
-                "destroy_chance_modifier": 20
-            },
-            "minecraft:map_color": "#B8945F",
+            "minecraft:map_color": "#7A7A7A",
             "minecraft:sound": {
-                "sound": "wood"
+                "sound": "stone"
             },
-            "minecraft:display_name": "Wooden Slab",
+            "minecraft:display_name": "Cobblestone Slab",
             "minecraft:tags": ["stone", "minecraft:is_pickaxe_item_destructible"]
         }
     }

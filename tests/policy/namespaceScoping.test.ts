@@ -40,6 +40,7 @@ describe("Namespace Scoping of Destructive Gates", () => {
         it("still culls modern vanilla mobs", () => {
             assert.equal(spawnEntity("minecraft:warden").isRemoved, true);
             assert.equal(spawnEntity("minecraft:drowned").isRemoved, true);
+            assert.equal(spawnEntity("minecraft:sulfur_cube").isRemoved, true);
         });
     });
 

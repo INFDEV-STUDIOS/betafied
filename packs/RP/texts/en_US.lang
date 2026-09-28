@@ -1,8 +1,17 @@
 ## Betafied Custom Items & Blocks
 tile.bh:crafting_table.name=Crafting Table
 tile.bh:fence.name=Fence
+tile.bh:oak_stairs.name=Wooden Stairs
+tile.bh:cobblestone_stairs.name=Cobblestone Stairs
 tile.bh:wooden_slab.name=Wooden Slab
-item.bh:wooden_slab=Wooden Slab
+tile.bh:cobblestone_slab.name=Cobblestone Slab
+tile.bh:sandstone_slab.name=Sandstone Slab
+tile.bh:stone_slab.name=Stone Slab
+tile.bh:oak_log.name=Oak Wood
+tile.bh:birch_log.name=Birch Wood
+tile.bh:spruce_log.name=Spruce Wood
+tile.bh:chest.name=Chest
+tile.bh:double_chest.name=Large Chest
 item.bh:apple=Apple
 item.bh:bread=Bread
 item.bh:porkchop=Raw Porkchop
@@ -12,14 +21,9 @@ item.bh:cooked_cod=Cooked Fish
 item.bh:golden_apple=Golden Apple
 item.bh:cookie=Cookie
 item.bh:bow=Bow
-item.bh:oak_stairs=Wooden Stairs
-item.bh:cobblestone_stairs=Cobblestone Stairs
 item.bh:oak_log=Oak Wood
 item.bh:birch_log=Birch Wood
 item.bh:spruce_log=Spruce Wood
-item.bh:cobblestone_slab=Cobblestone Slab
-item.bh:sandstone_slab=Sandstone Slab
-item.bh:stone_slab=Stone Slab
 
 ## Beta 1.7.3 Wood & Logs
 tile.planks.name=Wooden Planks

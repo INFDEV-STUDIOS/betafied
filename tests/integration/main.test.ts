@@ -38,6 +38,10 @@ describe("Main Integration Harness - Bedrock Server Script Loading", () => {
             registeredBeforeEvents.has("playerInteractWithEntity"),
             "Expected playerInteractWithEntity listener for furnace minecart fueling"
         );
+        assert.ok(
+            registeredAfterEvents.has("blockContainerOpened") && registeredAfterEvents.has("blockContainerClosed"),
+            "Expected container access listeners so the double chest can mirror its halves"
+        );
 
         // Verify recurring background jobs were scheduled
         assert.ok(

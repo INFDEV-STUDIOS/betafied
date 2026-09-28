@@ -21,7 +21,7 @@
         "context": "PlayerInWater"
     },
     "result": {
-      "item": "minecraft:chest"
+      "item": "bh:chest"
     }
   }
 }

@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { eventBus } from "../../packs/BP/scripts/core/eventBus.js";
-import { Player, ItemStack, EntityComponentTypes } from "@minecraft/server";
+import { ItemStack, EntityComponentTypes } from "@minecraft/server";
 import { handleSheepPunch } from "../../packs/BP/scripts/mobs/betaAnimalAI.js";
 
 describe("Beta Animal AI - Sheep Punching", () => {

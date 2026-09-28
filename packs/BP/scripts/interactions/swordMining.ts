@@ -11,6 +11,9 @@ export const SWORD_FAST_BLOCKS = new Set([
     "minecraft:oak_planks", "minecraft:spruce_planks", "minecraft:birch_planks",
     "minecraft:planks",
     "minecraft:oak_stairs", "minecraft:wooden_stairs",
+    // Beta's reworked wooden stairs keep their own wood tool class, unlike the slab
+    // below which shares the stone slab's internals.
+    "bh:oak_stairs",
     "minecraft:pumpkin", "minecraft:carved_pumpkin", "minecraft:lit_pumpkin",
     "minecraft:wool", 
     "minecraft:white_wool", "minecraft:orange_wool", "minecraft:magenta_wool", "minecraft:light_blue_wool",

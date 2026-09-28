@@ -164,12 +164,6 @@ const dimensions = new Map<string, MockDimension>([
 ]);
 
 export const world = {
-    structureManager: {
-        placedStructures: [] as { structure: string; dimension: any; location: any; options?: any }[],
-        place(structure: string, dimension: any, location: any, options?: any) {
-            this.placedStructures.push({ structure, dimension, location, options });
-        }
-    },
     getAllPlayers() {
         return [...mockPlayers];
     },
@@ -201,6 +195,8 @@ export const world = {
         playerLeave: createEventSignal(registeredAfterEvents, "playerLeave"),
         playerPlaceBlock: createEventSignal(registeredAfterEvents, "playerPlaceBlock"),
         playerBreakBlock: createEventSignal(registeredAfterEvents, "playerBreakBlock"),
+        blockContainerOpened: createEventSignal(registeredAfterEvents, "blockContainerOpened"),
+        blockContainerClosed: createEventSignal(registeredAfterEvents, "blockContainerClosed"),
         playerDimensionChange: createEventSignal(registeredAfterEvents, "playerDimensionChange"),
         itemUse: createEventSignal(registeredAfterEvents, "itemUse"),
         itemStartUse: createEventSignal(registeredAfterEvents, "itemStartUse"),
@@ -212,31 +208,12 @@ export const world = {
     }
 };
 
-export const registeredCustomComponents = new Map<string, any>();
-
 export const system = {
     currentTick: 0,
     scheduledTimeouts,
     scheduledIntervals,
     activeJobs,
-    beforeEvents: {
-        startup: {
-            subscribe(callback: (arg: any) => void) {
-                callback({
-                    itemComponentRegistry: {
-                        registerCustomComponent(name: string, comp: any) {
-                            registeredCustomComponents.set(name, comp);
-                        }
-                    },
-                    blockComponentRegistry: {
-                        registerCustomComponent(name: string, comp: any) {
-                            registeredCustomComponents.set(name, comp);
-                        }
-                    }
-                });
-            }
-        }
-    },
+    beforeEvents: {},
     afterEvents: {
         scriptEventReceive: createEventSignal(registeredAfterEvents, "scriptEventReceive")
     },
@@ -284,13 +261,6 @@ export const EquipmentSlot = Object.freeze({
     Feet: "Feet",
     Mainhand: "Mainhand",
     Offhand: "Offhand"
-});
-
-export const StructureRotation = Object.freeze({
-    None: "None",
-    Rotate90: "Rotate90",
-    Rotate180: "Rotate180",
-    Rotate270: "Rotate270"
 });
 
 export const GameMode = Object.freeze({

@@ -2,46 +2,46 @@
     "format_version": "1.26.50",
     "minecraft:block": {
         "description": {
-            "identifier": "bh:wooden_slab",
+            "identifier": "bh:oak_log",
             "menu_category": {
-                "category": "construction",
-                "group": "minecraft:itemGroup.name.slab"
+                "category": "nature",
+                "group": "minecraft:itemGroup.name.log"
             }
         },
         "components": {
             "minecraft:geometry": {
-                "identifier": "geometry.slab"
+                "identifier": "minecraft:geometry.full_block"
             },
             "minecraft:material_instances": {
                 "*": {
-                    "texture": "bh_planks_oak",
+                    "texture": "bh_oak_log_side",
+                    "render_method": "opaque"
+                },
+                "up": {
+                    "texture": "bh_oak_log_top",
+                    "render_method": "opaque"
+                },
+                "down": {
+                    "texture": "bh_oak_log_top",
                     "render_method": "opaque"
                 }
-            },
-            "minecraft:collision_box": {
-                "origin": [-8, 0, -8],
-                "size": [16, 8, 16]
-            },
-            "minecraft:selection_box": {
-                "origin": [-8, 0, -8],
-                "size": [16, 8, 16]
             },
             "minecraft:destructible_by_mining": {
                 "seconds_to_destroy": 2.0
             },
             "minecraft:destructible_by_explosion": {
-                "explosion_resistance": 3
+                "explosion_resistance": 2
             },
             "minecraft:flammable": {
                 "catch_chance_modifier": 5,
                 "destroy_chance_modifier": 20
             },
-            "minecraft:map_color": "#B8945F",
+            "minecraft:map_color": "#6C5521",
             "minecraft:sound": {
                 "sound": "wood"
             },
-            "minecraft:display_name": "Wooden Slab",
-            "minecraft:tags": ["stone", "minecraft:is_pickaxe_item_destructible"]
+            "minecraft:display_name": "Oak Wood",
+            "minecraft:tags": ["log", "wood", "oak", "minecraft:is_axe_item_destructible"]
         }
     }
 }

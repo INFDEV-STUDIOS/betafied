@@ -51,6 +51,12 @@ export function resolvePlacerReplacement(id: string): string | undefined {
         return "bh:oak_log";
     }
 
+    if (bareId === "chest") {
+        // The Beta chest is the custom block: it wears the era's model and its halves pair through
+        // script, so a vanilla chest in a hotbar would place a block that never pairs.
+        return "bh:chest";
+    }
+
     if (bareId.endsWith("_stairs")) {
         const prefix = bareId.replace(/_mosaic_stairs|_stairs/, "");
         const isWood = prefix === "oak" || prefix === "spruce" || prefix === "birch" ||

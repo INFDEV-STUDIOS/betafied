@@ -112,6 +112,27 @@ describe("Bedrock Natural Spawning Contract - Spawn Rules & Biome Integrity", ()
         }
     });
 
+    it("verifies post-Beta mobs are suppressed with the unreachable the_void biome filter", () => {
+        // Vanilla keeps adding natural spawners; each one must ship a rule whose only
+        // biome condition is a tag no real biome ever uses, otherwise it spawns unchecked.
+        const suppressed = ["sulfur_cube", "bee", "armadillo", "creaking", "breeze"];
+
+        for (const name of suppressed) {
+            const content = JSON.parse(readFileSync(resolve(spawnRulesDir, `${name}.json`), "utf-8"));
+            const conditions = content["minecraft:spawn_rules"]?.conditions ?? [];
+
+            assert.ok(conditions.length > 0, `${name}.json must declare spawn conditions`);
+
+            for (const cond of conditions) {
+                const filter = JSON.stringify(cond["minecraft:biome_filter"] ?? "");
+                assert.ok(
+                    filter.includes("the_void"),
+                    `${name}.json must filter on the_void so it never spawns naturally`
+                );
+            }
+        }
+    });
+
     it("verifies all Beta mob spawn rules reference existing biome tags", () => {
         const betaRules = [
             "chicken.json", "cow.json", "creeper.json", "ghast.json", "pig.json",

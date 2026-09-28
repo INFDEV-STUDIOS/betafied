@@ -115,7 +115,7 @@ function runBulkCommands(dim: Dimension, cx: number, cz: number): void {
     }
 }
 
-function* scrubFineDetails(dimension: Dimension, cx: number, cz: number): Generator<void, void, unknown> {
+export function* scrubFineDetails(dimension: Dimension, cx: number, cz: number): Generator<void, void, unknown> {
     const startX = cx * 16;
     const startZ = cz * 16;
 
@@ -133,6 +133,16 @@ function* scrubFineDetails(dimension: Dimension, cx: number, cz: number): Genera
 
                     if (typeId === "minecraft:air" || typeId === "minecraft:stone" || typeId === "minecraft:water") continue;
 
+                    // Bedrock collapses every wood type into one planks block, so it is not an
+                    // unknown modern block — retype it to oak instead of scrubbing it away.
+                    if (typeId === "minecraft:planks") {
+                        const perm = block.permutation;
+                        if (perm.getState("wood_type") !== "oak") {
+                            block.setPermutation(BlockPermutation.resolve("minecraft:planks").withState("wood_type", "oak"));
+                        }
+                        continue;
+                    }
+
                     const blockNorm = normalizeBlock(typeId);
                     if (blockNorm.action === "convert" && blockNorm.targetId) {
                         const target = blockNorm.targetId;
@@ -142,11 +152,10 @@ function* scrubFineDetails(dimension: Dimension, cx: number, cz: number): Genera
                             const p = getPermutation(target);
                             if (p) block.setPermutation(p);
                         }
-                    } else if (typeId === "minecraft:planks") {
-                        const perm = block.permutation;
-                        if (perm.getState("wood_type") !== "oak") {
-                            block.setPermutation(BlockPermutation.resolve("minecraft:planks").withState("wood_type", "oak"));
-                        }
+                    } else if (blockNorm.action === "remove") {
+                        // Inverse allowlist: any minecraft: block outside BETA_BLOCK_IDS that has no
+                        // authentic counterpart must be scrubbed, not left behind in the chunk.
+                        block.setType("minecraft:air");
                     }
                 } catch {
                     // Ignore

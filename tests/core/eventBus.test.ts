@@ -35,6 +35,27 @@ describe("Central EventBus Architecture", () => {
         assert.deepEqual(order, [], "Unsubscribed handlers must not run");
     });
 
+    it("routes container access events to their subscribers", () => {
+        let opened = 0;
+        let closed = 0;
+
+        const unsubOpen = eventBus.onBlockContainerOpened(() => {
+            opened++;
+        });
+        const unsubClose = eventBus.onBlockContainerClosed(() => {
+            closed++;
+        });
+
+        eventBus.dispatch("blockContainerOpened", {});
+        eventBus.dispatch("blockContainerClosed", {});
+
+        assert.equal(opened, 1, "blockContainerOpened handlers must receive the open event");
+        assert.equal(closed, 1, "blockContainerClosed handlers must receive the close event");
+
+        unsubOpen();
+        unsubClose();
+    });
+
     it("isolates errors so a throwing handler does not crash sibling handlers", () => {
         let siblingRan = false;
 

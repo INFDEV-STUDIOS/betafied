@@ -1,0 +1,62 @@
+{
+    "format_version": "1.26.50",
+    "minecraft:block": {
+        "description": {
+            "identifier": "bh:chest",
+            "menu_category": {
+                "category": "items"
+            }
+        },
+        "components": {
+            "minecraft:geometry": {
+                "identifier": "minecraft:geometry.full_block"
+            },
+            "minecraft:material_instances": {
+                "*": {
+                    "texture": "bh_chest_side",
+                    "render_method": "opaque"
+                },
+                "up": {
+                    "texture": "bh_chest_top",
+                    "render_method": "opaque"
+                },
+                "down": {
+                    "texture": "bh_chest_top",
+                    "render_method": "opaque"
+                },
+                "south": {
+                    "texture": "bh_chest_front",
+                    "render_method": "opaque"
+                }
+            },
+            "minecraft:collision_box": {
+                "origin": [-8, 0, -8],
+                "size": [16, 16, 16]
+            },
+            "minecraft:selection_box": {
+                "origin": [-8, 0, -8],
+                "size": [16, 16, 16]
+            },
+            "minecraft:movable": {
+                "movement_type": "immovable"
+            },
+            "minecraft:destructible_by_mining": {
+                "seconds_to_destroy": 2.5
+            },
+            "minecraft:destructible_by_explosion": {
+                "explosion_resistance": 2.5
+            },
+            "minecraft:block_entity": {
+                "container": {
+                    "slot_count": 27
+                }
+            },
+            "minecraft:map_color": "#A0763C",
+            "minecraft:sound": {
+                "sound": "wood"
+            },
+            "minecraft:display_name": "Chest",
+            "minecraft:tags": ["wood", "minecraft:is_axe_item_destructible"]
+        }
+    }
+}

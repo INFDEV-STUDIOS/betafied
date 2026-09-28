@@ -11,6 +11,7 @@ import * as armor from "../../packs/BP/scripts/combat/armor.js";
 import * as machineGunBow from "../../packs/BP/scripts/combat/machineGunBow.js";
 import * as pigmanEquipment from "../../packs/BP/scripts/mobs/pigmanEquipment.js";
 import * as boatCollision from "../../packs/BP/scripts/interactions/boatCollision.js";
+import * as doubleChest from "../../packs/BP/scripts/interactions/doubleChest.js";
 import * as furnaceMinecart from "../../packs/BP/scripts/interactions/furnaceMinecart.js";
 import * as instantBonemeal from "../../packs/BP/scripts/interactions/instantBonemeal.js";
 import * as placement from "../../packs/BP/scripts/interactions/placement.js";
@@ -34,7 +35,7 @@ import * as ruinedPortalScrubber from "../../packs/BP/scripts/world/ruinedPortal
 import * as worldBorder from "../../packs/BP/scripts/world/worldBorder.js";
 
 describe("Subsystems Direct Integration Suite", () => {
-    it("successfully loads and verifies all 30 subsystem modules without errors", () => {
+    it("successfully loads and verifies all 31 subsystem modules without errors", () => {
         const modules = [
             achievements,
             errorReporter,
@@ -45,6 +46,7 @@ describe("Subsystems Direct Integration Suite", () => {
             machineGunBow,
             pigmanEquipment,
             boatCollision,
+            doubleChest,
             furnaceMinecart,
             instantBonemeal,
             placement,
@@ -68,7 +70,7 @@ describe("Subsystems Direct Integration Suite", () => {
             worldBorder
         ];
 
-        assert.equal(modules.length, 30, "All 30 production subsystems should be registered and tested");
+        assert.equal(modules.length, 31, "All 31 production subsystems should be registered and tested");
 
         for (const mod of modules) {
             assert.ok(mod !== null && typeof mod === "object", "Subsystem module should evaluate to an object");

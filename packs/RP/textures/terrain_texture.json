@@ -306,6 +306,26 @@
         "ancient_debris_side": { "textures": "textures/blocks/netherrack" },
         "ancient_debris_top": { "textures": "textures/blocks/netherrack" },
         "nether_gold_ore": { "textures": "textures/blocks/netherrack" },
-        "quartz_ore": { "textures": "textures/blocks/netherrack" }
+        "quartz_ore": { "textures": "textures/blocks/netherrack" },
+
+        "bh_planks_oak": { "textures": "textures/blocks/planks_oak" },
+        "bh_cobblestone": { "textures": "textures/blocks/cobblestone" },
+        "bh_stone_slab_side": { "textures": "textures/blocks/stone_slab_side" },
+        "bh_stone_slab_top": { "textures": "textures/blocks/stone_slab_top" },
+        "bh_sandstone_side": { "textures": "textures/blocks/sandstone_normal" },
+        "bh_sandstone_top": { "textures": "textures/blocks/sandstone_top" },
+        "bh_oak_log_side": { "textures": "textures/blocks/log_oak" },
+        "bh_oak_log_top": { "textures": "textures/blocks/log_oak_top" },
+        "bh_birch_log_side": { "textures": "textures/blocks/log_birch" },
+        "bh_birch_log_top": { "textures": "textures/blocks/log_birch_top" },
+        "bh_spruce_log_side": { "textures": "textures/blocks/log_spruce" },
+        "bh_spruce_log_top": { "textures": "textures/blocks/log_spruce_top" },
+        "bh_chest_side": { "textures": "textures/blocks/chest_side" },
+        "bh_chest_top": { "textures": "textures/blocks/chest_top" },
+        "bh_chest_front": { "textures": "textures/blocks/chest_face" },
+        "bh_chest_left_front": { "textures": "textures/blocks/chest_left_face" },
+        "bh_chest_left_back": { "textures": "textures/blocks/chest_left_back" },
+        "bh_chest_right_front": { "textures": "textures/blocks/chest_right_face" },
+        "bh_chest_right_back": { "textures": "textures/blocks/chest_right_back" }
     }
 }
