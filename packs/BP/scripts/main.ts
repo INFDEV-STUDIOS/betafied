@@ -32,7 +32,6 @@ import "./mobs/entityCleaner.js";
 import "./mobs/betaAnimalAI.js";
 import "./mobs/nightmares.js";
 import "./mobs/herobrine.js";
-import "./world/worldSpawn.js";
 import "./interactions/doubleChest.js";
 
 eventBus.init();

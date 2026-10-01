@@ -5,7 +5,7 @@
 
 The addon systematically transforms modern Bedrock behaviors to reflect the beloved golden age of Beta 1.7.3:
 - **Classic Combat & Health**: Instant food consumption directly restoring health (no hunger bar, natural regeneration disabled), instant machine-gun bow fire, and era-authentic armor durability scaling.
-- **Classic Mob AI & Spawning**: Beta animal behavior (free-wandering, non-breeding), entity spawn rate controls, automated entity cleaner, classic nightmare ambush during bed sleep, and random world spawn distribution.
+- **Classic Mob AI & Spawning**: Beta animal behavior (free-wandering, non-breeding), entity spawn rate controls, automated entity cleaner, and a classic nightmare ambush during bed sleep.
 - **World & Terrain Restoration**: Rough bedrock layers, dimension boundary enforcement, Nether ice-to-water mechanics, void fog simulation, island containment, authentic Beta fence connectivity, finite world border enforcement (radius 4000), and automated chunk scrubbers.
 - **Period-Accurate Interactions**: Furnace minecart coal fueling and cart-pushing physics, authentic boat collision destruction (dropping sticks and wood planks), instant bonemeal crop growth, classic block placement and waterlog prevention, legacy redstone mining light states, and sword cobweb mining.
 - **Inventory & Entity Normalization**: Transparent conversion of post-Beta items, blocks, and entity drops into era-appropriate equivalents, with privileged bypass tags (`builder_exempt`) for builders and creative staff.
@@ -46,8 +46,8 @@ The addon systematically transforms modern Bedrock behaviors to reflect the belo
   - Fallible API operations (such as dynamic property reads, entity query execution, or inventory manipulation) must be guarded with `errorReporter.runCatching({ system, operation }, () => { ... })` from `packs/BP/scripts/core/errorReporter.ts`.
   - Never silently swallow exceptions in empty catch blocks. Always log structured context with `errorReporter`.
 - **Logging Standards**:
-  - Do NOT use bracket-prefixed debug tags (e.g. `console.warn("[Betafied] Loaded")` or `console.warn("[worldSpawn] Error")`). This triggers tagged debug log lint detectors.
-  - Use standard prefix formatting: `console.warn("worldSpawn: error setting spawn")` or route through `reportError()`.
+  - Do NOT use bracket-prefixed debug tags (e.g. `console.warn("[Betafied] Loaded")` or `console.warn("[chunkScrubber] Error")`). This triggers tagged debug log lint detectors.
+  - Use standard prefix formatting: `console.warn("chunkScrubber: error sealing floor")` or route through `reportError()`.
 - **Watchdog Protection & Job Slicing**:
   - Bedrock's script watchdog terminates scripts exceeding tick execution time limits.
   - Avoid heavy synchronous loops within a single tick. Use `system.runJob` with generator functions (`function* () { ... yield; }`) or slice work over multiple ticks to prevent watchdog runtime terminations.

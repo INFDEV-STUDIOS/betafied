@@ -46,7 +46,6 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 
 #### 5. World & Terrain (`packs/BP/scripts/world/`)
 - `worldBorder.ts`: World boundary enforcement (radius 4000).
-- `worldSpawn.ts`: World spawn coordinator locating solid, hazard-free ground on initial world creation.
 - `buildHeightLimit.ts`: Enforces the classic 128-block build ceiling.
 - `dimensionBoundary.ts`: Blocks entry to The End, which does not exist in Beta 1.7.3.
 - `chunkScrubber.ts`: Rewrites loaded chunks back to Beta 1.7.3 through filtered volume queries and native block fills, capping the Overworld at an uneven bedrock floor on Y=0.
