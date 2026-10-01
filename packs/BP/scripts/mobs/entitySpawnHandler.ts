@@ -1,7 +1,7 @@
 import { world, system, ItemStack, Entity, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
-import { normalizeEntityDrop } from "../core/normalizer.js";
+import { normalizeEntityDrop, resolvePlacerReplacement } from "../core/normalizer.js";
 import { eventBus } from "../core/eventBus.js";
 
 const recentBrokenLeaves = new Map<string, number>();
@@ -120,12 +120,17 @@ eventBus.onEntitySpawn((event) => {
                 return;
             }
 
-            if (dropResult.action === "convert" && dropResult.targetId) {
+            // The inventory sweeper retypes placer items into their `bh:` form on pickup, so the drop
+            // has to land on that same identifier. Left as the vanilla id, a second log finds no stack
+            // to merge into - the first one is already `bh:oak_log` - and every pickup lands alone.
+            const normalizedId = dropResult.action === "convert" && dropResult.targetId ? dropResult.targetId : itemId;
+            const finalId = resolvePlacerReplacement(itemId) ?? normalizedId;
+
+            if (finalId !== itemId) {
                 const loc = entity.location;
                 const dim = entity.dimension;
                 entity.remove();
-                dim.spawnItem(new ItemStack(dropResult.targetId, amount), loc);
-                return;
+                dim.spawnItem(new ItemStack(finalId, amount), loc);
             }
 
             return;

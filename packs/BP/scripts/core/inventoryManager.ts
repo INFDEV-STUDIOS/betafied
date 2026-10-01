@@ -11,7 +11,7 @@ import {
 import { isInventoryExempt } from "./permissions.js";
 import { reportError } from "./errorReporter.js";
 import { isBetaItem, isVanillaId } from "./betaRegistry.js";
-import { normalizeItem, isStoneCompound } from "./normalizer.js";
+import { normalizeItem, resolvePlacerReplacement } from "./normalizer.js";
 import { tickManager } from "./tickManager.js";
 import { eventBus } from "./eventBus.js";
 
@@ -40,53 +40,6 @@ const FOOD_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze({
     "minecraft:salmon": "bh:cod",
     "minecraft:cooked_salmon": "bh:cooked_cod"
 });
-
-export function resolvePlacerReplacement(id: string): string | undefined {
-    if (!id.startsWith("minecraft:")) {
-        return undefined;
-    }
-
-    const bareId = id.slice(10);
-
-    if (bareId === "wood" || bareId === "log" || bareId === "log2") {
-        return "bh:oak_log";
-    }
-    if (bareId.endsWith("_log") || bareId.endsWith("_wood") || bareId.endsWith("_stem") || bareId.endsWith("_hyphae") || bareId.startsWith("stripped_")) {
-        if (bareId.includes("spruce")) return "bh:spruce_log";
-        if (bareId.includes("birch")) return "bh:birch_log";
-        return "bh:oak_log";
-    }
-
-    if (bareId === "chest") {
-        // The Beta chest is the custom block: it wears the era's model and its halves pair through
-        // script, so a vanilla chest in a hotbar would place a block that never pairs.
-        return "bh:chest";
-    }
-
-    if (bareId.endsWith("_stairs")) {
-        const prefix = bareId.replace(/_mosaic_stairs|_stairs/, "");
-        const isWood = prefix === "oak" || prefix === "spruce" || prefix === "birch" ||
-            prefix === "jungle" || prefix === "acacia" || prefix === "dark_oak" ||
-            prefix === "mangrove" || prefix === "cherry" || prefix === "pale_oak" ||
-            prefix === "bamboo" || prefix === "crimson" || prefix === "warped";
-        return isWood ? "bh:oak_stairs" : "bh:cobblestone_stairs";
-    }
-
-    if (bareId.endsWith("_slab") || bareId.startsWith("stone_block_slab")) {
-        if (bareId.includes("cobble")) {
-            return "bh:cobblestone_slab";
-        }
-        if (bareId.includes("sandstone")) {
-            return "bh:sandstone_slab";
-        }
-        if (isStoneCompound(bareId) || bareId.startsWith("stone_block_slab") || bareId === "stone_slab" || bareId === "smooth_stone_slab") {
-            return "bh:stone_slab";
-        }
-        return "bh:wooden_slab";
-    }
-
-    return undefined;
-}
 
 const UNSTACKABLE_UTILITIES: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:wooden_door",
