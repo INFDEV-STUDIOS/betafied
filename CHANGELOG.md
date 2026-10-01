@@ -2,6 +2,66 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.1 — 2026-10-01
+
+5.1 is the cleanup that follows 5.0. It closes the gaps the terrain rewrite left open: the foliage
+and flowers that were slipping past the scrubber, the sideways logs modern generation scatters as
+"fallen trees," and the two chokepoints that made a fresh world worse than an old one — a spawn that
+searched down into the new floor and found nothing, and logs that would not stack once picked up.
+
+### World spawn
+
+Beta dropped the player onto whatever terrain the seed produced, and so does this release now that
+the custom spawn coordinator is gone. That module teleported a new player to a random point up to
+1000 blocks out, lifted them to Y=130 and searched downward for solid, hazard-free ground. Once 5.0
+laid the Overworld's bedrock floor at Y=0, that search ran off the bottom of its range over fresh
+terrain, the open ocean and any chunk the engine had not loaded yet, so it returned nothing; after
+fifteen failed attempts it fell back to a fixed `{0, 80, 0}`, which was often a fall or a drop into
+water. Spawn is the engine's own again, and the module is deleted rather than left dormant.
+
+### Fallen trees
+
+Modern overworld generation scatters fallen trees — a log laid flat on the ground — through several
+forests. Beta 1.7.3 logs only ever stood upright, so they have no Beta counterpart and are now
+gone.
+
+- The engine features that place them are shipped as inert no-ops, so new terrain no longer grows
+  them. That is the fix for a fresh world. The five `fallen_*_tree_feature` ids and their five
+  `optional_fallen_*` variants are all suppressed; the previous stub named `fallen_acacia_tree_feature`
+  was a no-op against a feature that does not exist, which is why acacia was never the problem and
+  the forests kept their logs.
+- Terrain that already generated is cleaned by the scrubber. A permutation-filtered native fill
+  matches a log on its side and clears it to air, while a vertical log — which the axis alone cannot
+  tell apart from terrain — is left standing. Presence is probed per band first, so a chunk with only
+  upright logs pays one scan and no write.
+
+### Plants and flowers
+
+Post-Beta plants were surviving a full scrub pass, and this release is why they no longer do.
+
+- The scrubber kept two replacement tables: a bulk table reached by group-testing its types, and a
+  fine table reached only through the fine pass's reverse-allowlist volume query. That query does not
+  reliably hand these blocks back, so anything listed only in the fine table — the modern flowers,
+  leaf litter, vines and the tall plants above — could sit through a complete sweep untouched. Both
+  tables are now merged into the single probe list that drives the filtered native fill, which is the
+  path that actually reaches them. On a type named in both tables the first entry wins, so nothing is
+  filled twice.
+- The full modern flower palette is enumerated — lilac, peony, rose bush, sunflower, cornflower,
+  lily of the valley, azure bluet, oxeye daisy, allium, blue orchid, pitcher plant, torchflower and
+  hanging roots — and the tall ones are masked in the resource pack so an unscrubbed chunk shows
+  nothing rather than a see-through hole.
+
+### Item drops
+
+The log-drop stacking bug is fixed, and it was a coordination problem rather than a duplicate one.
+
+- A chopped log's drop was left as `minecraft:oak_log` on the ground, while the inventory sweeper
+  retyped the item to `bh:oak_log` only once it was picked up. The second log therefore found no
+  stack to merge into — the first one was already the custom id — and a player collected a hotbar of
+  singles. Drop rewrites now resolve through the same placer table the sweeper uses and spawn the
+  item as its final `bh:` identifier, so the ground item and the inventory item are identical and the
+  engine merges them natively.
+
 ## 5.0 — 2026-10-01
 
 First, an apology for the wait. This release took much longer to reach you than we intended. Partway
