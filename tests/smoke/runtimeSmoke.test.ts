@@ -67,7 +67,6 @@ describe("Bedrock Runtime Smoke Suite - Manifest & Entrypoint Integrity", () => 
             "packs/BP/scripts/world/classicFog.ts",
             "packs/BP/scripts/world/island.ts",
             "packs/BP/scripts/world/netherIce.ts",
-            "packs/BP/scripts/world/worldSpawn.ts",
             "packs/BP/scripts/world/worldBorder.ts",
             "packs/BP/scripts/mobs/betaAnimalAI.ts",
             "packs/BP/scripts/mobs/entityCleaner.ts",

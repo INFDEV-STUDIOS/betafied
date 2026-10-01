@@ -24,7 +24,6 @@ import * as entityCleaner from "../../packs/BP/scripts/mobs/entityCleaner.js";
 import * as entitySpawnHandler from "../../packs/BP/scripts/mobs/entitySpawnHandler.js";
 import * as nightmares from "../../packs/BP/scripts/mobs/nightmares.js";
 import * as herobrine from "../../packs/BP/scripts/mobs/herobrine.js";
-import * as worldSpawn from "../../packs/BP/scripts/world/worldSpawn.js";
 import * as chunkScrubber from "../../packs/BP/scripts/world/chunkScrubber.js";
 import * as dimensionBoundary from "../../packs/BP/scripts/world/dimensionBoundary.js";
 import * as fenceConnectivity from "../../packs/BP/scripts/interactions/fenceConnectivity.js";
@@ -35,7 +34,7 @@ import * as netherIce from "../../packs/BP/scripts/world/netherIce.js";
 import * as worldBorder from "../../packs/BP/scripts/world/worldBorder.js";
 
 describe("Subsystems Direct Integration Suite", () => {
-    it("successfully loads and verifies all 31 subsystem modules without errors", () => {
+    it("successfully loads and verifies all 30 subsystem modules without errors", () => {
         const modules = [
             achievements,
             errorReporter,
@@ -59,7 +58,6 @@ describe("Subsystems Direct Integration Suite", () => {
             entitySpawnHandler,
             nightmares,
             herobrine,
-            worldSpawn,
             chunkScrubber,
             dimensionBoundary,
             fenceConnectivity,
@@ -70,7 +68,7 @@ describe("Subsystems Direct Integration Suite", () => {
             worldBorder
         ];
 
-        assert.equal(modules.length, 31, "All 31 production subsystems should be registered and tested");
+        assert.equal(modules.length, 30, "All 30 production subsystems should be registered and tested");
 
         for (const mod of modules) {
             assert.ok(mod !== null && typeof mod === "object", "Subsystem module should evaluate to an object");
