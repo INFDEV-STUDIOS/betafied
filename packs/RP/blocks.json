@@ -7,6 +7,21 @@
     "leaf_litter": {
         "blockshape": "invisible"
     },
+    "lilac": {
+        "blockshape": "invisible"
+    },
+    "peony": {
+        "blockshape": "invisible"
+    },
+    "rose_bush": {
+        "blockshape": "invisible"
+    },
+    "sunflower": {
+        "blockshape": "invisible"
+    },
+    "pitcher_plant": {
+        "blockshape": "invisible"
+    },
     "acacia_door": {
         "isotropic": false,
         "sound": "wood",

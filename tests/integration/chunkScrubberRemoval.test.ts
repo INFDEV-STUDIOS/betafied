@@ -149,6 +149,52 @@ describe("Chunk Scrubber - Inverse Allowlist Enforcement", () => {
         assert.deepEqual(stoneBricks.setTypeCalls, ["minecraft:air"], "all non-Beta blocks must be deleted");
     });
 
+    it("clears vines through the bulk path", () => {
+        const dim = scrubDimension(new Map<string, RecordedBlock>([
+            ["3,70,2", recordingBlock("minecraft:vine")],
+            ["9,40,9", recordingBlock("minecraft:cave_vines")]
+        ]));
+
+        scrub(dim);
+
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:vine"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:vine"
+        ]);
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:cave_vines"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:cave_vines"
+        ]);
+    });
+
+    it("clears modern flowers through the bulk path", () => {
+        const dim = scrubDimension(new Map<string, RecordedBlock>([
+            ["3,70,2", recordingBlock("minecraft:lilac")],
+            ["7,66,9", recordingBlock("minecraft:sunflower")]
+        ]));
+
+        scrub(dim);
+
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:lilac"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:lilac"
+        ]);
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:sunflower"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:sunflower"
+        ]);
+    });
+
+    it("clears leaf litter with a bulk fill", () => {
+        const dim = scrubDimension(new Map<string, RecordedBlock>([
+            ["4,66,9", recordingBlock("minecraft:leaf_litter", { growth: 4, "minecraft:cardinal_direction": "north" })]
+        ]));
+
+        scrub(dim);
+
+        // The fine pass never returned leaf litter from its volume query, so the bulk fill is the path
+        // that actually removes it.
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:leaf_litter"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:leaf_litter"
+        ]);
+    });
+
     it("keeps authentic Beta blocks untouched", () => {
         const log = recordingBlock("minecraft:oak_log");
         const cobble = recordingBlock("minecraft:cobblestone");

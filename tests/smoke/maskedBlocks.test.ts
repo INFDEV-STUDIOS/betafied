@@ -15,10 +15,15 @@ const MAY_BE_INVISIBLE = new Set([
     "kelp",
     "lantern",
     "leaf_litter",
+    "lilac",
+    "peony",
+    "pitcher_plant",
+    "rose_bush",
     "seagrass",
     "soul_fire",
     "soul_lantern",
     "spore_blossom",
+    "sunflower",
     "vine"
 ]);
 
