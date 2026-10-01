@@ -9,8 +9,29 @@ const SCRUBBED_AT = new Map<string, number>();
 const MAX_TRACKED_CHUNKS = 8192;
 const CHUNKS_PER_TICK_LIMIT = 1;
 
-// A scrub pass is one horizontal slab of a chunk. 128 keeps every native call exactly at the
-// 32768-block fill ceiling, so no band top is ever paid for as slack.
+// How far the floor is sealed past the player's own chunk. One chunk each way is enough now that the
+// ring actually fills: the void players saw at a chunk boundary was the sweep re-sealing a single
+// chunk, not the ring being too shallow. Raise this to widen the sealed area.
+const SCRUB_RADIUS = 1;
+
+function buildNeighbourhood(): (readonly [number, number])[] {
+    const offsets: [number, number][] = [];
+    for (let dx = -SCRUB_RADIUS; dx <= SCRUB_RADIUS; dx++) {
+        for (let dz = -SCRUB_RADIUS; dz <= SCRUB_RADIUS; dz++) {
+            offsets.push([dx, dz]);
+        }
+    }
+    // Nearest first: the ring is sealed outward, so the ground under the player never waits on the
+    // far corner of the neighbourhood. With a one-chunk-per-pass budget the old fixed west-to-east
+    // sweep always spent the budget on the ring instead, and a moving player never saw the floor
+    // arrive under them - only in the chunk they had already left.
+    return offsets.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+}
+
+const SCRUB_NEIGHBOURHOOD: readonly (readonly [number, number])[] = buildNeighbourhood();
+
+// A scrub pass is one horizontal slab of a chunk. 128 keeps a band's volume query to 32768 blocks,
+// which bounds a single native scan and lets the job yield at a useful granularity.
 const BAND_HEIGHT = 128;
 const CHUNK_SIZE = 16;
 
@@ -24,6 +45,12 @@ const REVERIFY_INTERVAL_TICKS = 2400;
 const OVERWORLD_ID = "minecraft:overworld";
 const BETA_FLOOR_Y = 0;
 const BETA_FLOOR_LAYERS = 3;
+
+// The highest Y the floor generator may write. Anything above it is a floor written by an older
+// build and is cleared back to air.
+const BETA_FLOOR_CEILING = BETA_FLOOR_Y + BETA_FLOOR_LAYERS;
+
+const BEDROCK_FILTER: BlockFilter = Object.freeze({ includeTypes: ["minecraft:bedrock"] });
 
 /**
  * Types the scrubber is allowed to walk past.
@@ -79,59 +106,124 @@ function needsScrub(key: string, tick: number): boolean {
     return lastScrubbed === undefined || tick - lastScrubbed >= REVERIFY_INTERVAL_TICKS;
 }
 
-function fill(dim: Dimension, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, block: string, target?: string): void {
-    const replace = target === undefined ? "" : ` replace ${target}`;
-    try {
-        dim.runCommand(`fill ${x1} ${y1} ${z1} ${x2} ${y2} ${z2} ${block}${replace}`);
-    } catch {
-        // An unloaded chunk rejects the fill; the scrubber revisits it on a later pass.
-    }
-}
+// A sweep yields across ticks, so the scheduler fires the next pass before the current one has
+// marked its chunk done. Without a claim, every pass re-picks the same first chunk and the rest of
+// the neighbourhood never gets a turn - the starvation just moves to whichever chunk the order
+// favours. A claim older than the stale window is ignored so a dropped job cannot wedge a chunk.
+const SCRUB_IN_FLIGHT = new Map<string, number>();
+const IN_FLIGHT_STALE_TICKS = 200;
 
-function chunkSeed(cx: number, cz: number): number {
-    let h = (cx * 374761393 + cz * 668265263) | 0;
-    h = (h ^ (h >>> 13)) * 1274126177;
-    return (h ^ (h >>> 16)) >>> 0;
-}
-
-function nextSeed(seed: number): number {
-    return (seed * 1664525 + 1013904223) >>> 0;
+function isInFlight(key: string, tick: number): boolean {
+    const claimedAt = SCRUB_IN_FLIGHT.get(key);
+    return claimedAt !== undefined && tick - claimedAt < IN_FLIGHT_STALE_TICKS;
 }
 
 /**
- * Seals the deep world so the Overworld ends at Y=0 the way Beta's did.
+ * Fills a volume through the native block API.
+ *
+ * The `fill` command is deliberately not used: every command is parsed and permission-checked on the
+ * way through the engine, so the same work costs far more per call and caps a volume at 32768 blocks.
+ * `fillBlocks` is the direct engine call, and `ignoreChunkBoundErrors` keeps a fill that only partly
+ * lands in loaded chunks from being thrown away whole.
+ */
+function fill(dim: Dimension, x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, block: string, filter?: BlockFilter): void {
+    try {
+        dim.fillBlocks(
+            new BlockVolume({ x: x1, y: y1, z: z1 }, { x: x2, y: y2, z: z2 }),
+            block,
+            { blockFilter: filter, ignoreChunkBoundErrors: true }
+        );
+    } catch {
+        // A volume still outside loaded chunks is retried on a later pass.
+    }
+}
+
+/** Deterministic value noise in [0, 1) for one cell of the floor heightmap. */
+function floorNoise(cx: number, cz: number, gx: number, gz: number): number {
+    let h = (cx * 374761393 + cz * 668265263 + gx * 1274126177 + gz * 1013904223) | 0;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Buckets the noise into a mostly-flat floor with scattered raised bedrock.
+ *
+ * The skew matters more than the curve: vanilla's own floor is a solid layer with roughly half its
+ * columns carrying a second block and only a scattering above that, so an even split would average
+ * two blocks per column and read as a pile rather than a surface.
+ */
+function floorHeight(noise: number): number {
+    if (noise < 0.45) return 0;
+    if (noise < 0.8) return 1;
+    if (noise < 0.95) return 2;
+    return BETA_FLOOR_LAYERS;
+}
+
+/**
+ * Seals the Overworld at Y=0 the way Beta's did, under a rough bedrock floor.
  *
  * Beta was 128 blocks tall with a jagged bedrock floor at the bottom and nothing beneath it. An
- * addon cannot shorten the Overworld, so the sub-zero column is ballasted with stone and capped
- * with bedrock instead. That is a handful of native fills per chunk; rebuilding it per column
- * would be 16k script calls and blow the watchdog budget.
+ * addon cannot shorten the Overworld, so a bedrock floor is laid at Y=0 instead. The sub-zero column
+ * is deliberately left as native terrain: survival players cannot break through bedrock, so
+ * ballasting it with stone only spent native fills per chunk on ground that could never be seen.
  *
- * This also means nothing under Y=0 needs to be *inspected*: the column is one solid block type
- * afterwards, so the scrub sweep starts at the floor rather than re-reading it.
+ * The surface is a per-block heightmap merged into horizontal runs, so it reads like the noise a
+ * generated floor carries rather than a handful of flat plateaus. Runs keep a chunk to a few dozen
+ * native fills where one per block would be 256.
  */
 export function solidifyBetaFloor(dim: Dimension, cx: number, cz: number): void {
     if (dim.id !== OVERWORLD_ID) return;
 
+    const originX = cx * CHUNK_SIZE;
+    const originZ = cz * CHUNK_SIZE;
+
+    // A solid base first: with the sub-zero column no longer ballasted, a gap here would drop the
+    // player onto native deepslate or, in a flat world, into the void.
+    fill(dim, originX, BETA_FLOOR_Y, originZ, originX + CHUNK_SIZE - 1, BETA_FLOOR_Y, originZ + CHUNK_SIZE - 1, "minecraft:bedrock");
+
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+        let runStart = -1;
+        let runHeight = 0;
+
+        for (let x = 0; x <= CHUNK_SIZE; x++) {
+            // The trailing sentinel of height zero flushes whatever run is still open.
+            const height = x === CHUNK_SIZE ? 0 : floorHeight(floorNoise(cx, cz, x, z));
+
+            if (runStart >= 0 && height === runHeight) continue;
+
+            if (runStart >= 0) {
+                fill(dim, originX + runStart, BETA_FLOOR_Y + 1, originZ + z, originX + x - 1, runHeight, originZ + z, "minecraft:bedrock");
+            }
+
+            runStart = height > 0 ? x : -1;
+            runHeight = height;
+        }
+    }
+}
+
+/**
+ * Clears stray bedrock above the sealed floor.
+ *
+ * Bedrock only exists naturally at the bottom of the world, so anything above the ceiling in the
+ * Overworld is an artifact of a floor written by an older build. The presence probe gates the fill,
+ * so a clean chunk pays one native scan per band and no write at all.
+ */
+export function repairFloorOverflow(dim: Dimension, cx: number, cz: number): void {
+    if (dim.id !== OVERWORLD_ID) return;
+
+    const { max: yMax } = dim.heightRange;
     const x1 = cx * CHUNK_SIZE;
     const z1 = cz * CHUNK_SIZE;
     const x2 = x1 + CHUNK_SIZE - 1;
     const z2 = z1 + CHUNK_SIZE - 1;
-    const { min: yMin } = dim.heightRange;
 
-    // Starting one above the floor leaves the engine's own bottom bedrock in place.
-    fill(dim, x1, yMin + 1, z1, x2, BETA_FLOOR_Y - 1, z2, "minecraft:stone");
-    fill(dim, x1, BETA_FLOOR_Y, z1, x2, BETA_FLOOR_Y, z2, "minecraft:bedrock");
+    for (let y = BETA_FLOOR_CEILING + 1; y <= yMax; y += BAND_HEIGHT) {
+        const bandTop = Math.min(y + BAND_HEIGHT - 1, yMax);
+        const volume = new BlockVolume({ x: x1, y, z: z1 }, { x: x2, y: bandTop, z: z2 });
 
-    // Deterministic per-chunk offsets stack a few uneven bedrock layers, so the cap reads as ragged
-    // without costing a fill per column.
-    let seed = chunkSeed(cx, cz);
-    for (let layer = 1; layer <= BETA_FLOOR_LAYERS; layer++) {
-        seed = nextSeed(seed);
-        const ax = x1 + (seed & 15);
-        const az = z1 + ((seed >>> 8) & 15);
-        const bx = x1 + ((seed >>> 16) & 15);
-        const bz = z1 + ((seed >>> 24) & 15);
-        fill(dim, Math.min(ax, bx), layer, Math.min(az, bz), Math.max(ax, bx), layer, Math.max(az, bz), "minecraft:bedrock");
+        if (!containsBlocksIn(dim, volume, BEDROCK_FILTER)) continue;
+
+        fill(dim, x1, y, z1, x2, bandTop, z2, "minecraft:air", BEDROCK_FILTER);
     }
 }
 
@@ -264,7 +356,7 @@ function runBulkReplacements(dimension: Dimension, volume: BlockVolume, cx: numb
 
     for (const i of present) {
         const [target, replacement] = BLOCK_BULK_REPLACEMENTS[i];
-        fill(dimension, x1, bandBottom, z1, x2, bandTop, z2, replacement, target);
+        fill(dimension, x1, bandBottom, z1, x2, bandTop, z2, replacement, { includeTypes: [target] });
     }
 }
 
@@ -279,8 +371,8 @@ export function* scrubFineDetails(dimension: Dimension, cx: number, cz: number):
     const x1 = cx * CHUNK_SIZE;
     const z1 = cz * CHUNK_SIZE;
 
-    // Everything below Y=0 is sealed by solidifyBetaFloor into a single block type, so there is
-    // nothing down there worth reading back.
+    // Everything below Y=0 sits under the unbreakable bedrock floor, so there is nothing down there
+    // worth reading back.
     const startY = dimension.id === OVERWORLD_ID ? Math.max(yMin, BETA_FLOOR_Y) : yMin;
 
     // A chunk is only re-walked after the re-verify window, so an unloaded chunk must never be marked
@@ -333,25 +425,33 @@ export function* chunkScanJob(): Generator<void, void, unknown> {
         const centerX = Math.floor(playerX / CHUNK_SIZE);
         const centerZ = Math.floor(playerZ / CHUNK_SIZE);
 
-        for (let dx = -1; dx <= 1; dx++) {
+        for (const [dx, dz] of SCRUB_NEIGHBOURHOOD) {
             if (scrubbed >= CHUNKS_PER_TICK_LIMIT) return;
 
-            for (let dz = -1; dz <= 1; dz++) {
-                if (scrubbed >= CHUNKS_PER_TICK_LIMIT) return;
+            const chunkX = centerX + dx;
+            const chunkZ = centerZ + dz;
+            const key = `${dimension.id}:${chunkX},${chunkZ}`;
 
-                const chunkX = centerX + dx;
-                const chunkZ = centerZ + dz;
-                const key = `${dimension.id}:${chunkX},${chunkZ}`;
+            if (!needsScrub(key, tick) || isInFlight(key, tick)) continue;
 
-                if (!needsScrub(key, tick)) continue;
+            // An unloaded chunk rejects the fill and cannot be read back. Skipping it keeps it off the
+            // budget entirely, so a neighbour that is not loaded yet cannot starve the ring; it is
+            // picked up once it loads.
+            if (!dimension.isChunkLoaded({ x: chunkX * CHUNK_SIZE, y: BETA_FLOOR_Y, z: chunkZ * CHUNK_SIZE })) continue;
 
-                solidifyBetaFloor(dimension, chunkX, chunkZ);
+            SCRUB_IN_FLIGHT.set(key, tick);
+            solidifyBetaFloor(dimension, chunkX, chunkZ);
+            repairFloorOverflow(dimension, chunkX, chunkZ);
 
-                if (yield* scrubFineDetails(dimension, chunkX, chunkZ)) {
-                    markScrubbed(key, tick);
-                }
-                scrubbed++;
-            }
+            const clean = yield* scrubFineDetails(dimension, chunkX, chunkZ);
+            SCRUB_IN_FLIGHT.delete(key);
+
+            // Only a completed sweep spends the budget, so a chunk that could not be read is retried
+            // without holding the rest of the neighbourhood behind it.
+            if (!clean) continue;
+
+            markScrubbed(key, tick);
+            scrubbed++;
         }
     }
 }

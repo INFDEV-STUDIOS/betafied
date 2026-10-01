@@ -49,7 +49,7 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `worldSpawn.ts`: World spawn coordinator locating solid, hazard-free ground on initial world creation.
 - `buildHeightLimit.ts`: Enforces the classic 128-block build ceiling.
 - `dimensionBoundary.ts`: Blocks entry to The End, which does not exist in Beta 1.7.3.
-- `chunkScrubber.ts`: Rewrites loaded chunks back to Beta 1.7.3 through filtered volume queries and native `fill` commands, sealing the sub-zero column behind an uneven bedrock floor.
+- `chunkScrubber.ts`: Rewrites loaded chunks back to Beta 1.7.3 through filtered volume queries and native block fills, capping the Overworld at an uneven bedrock floor on Y=0.
 - `underwaterOverlay.ts`: Drives the full-screen Beta water tint off the HUD title channel, checking the head every tick.
 - `classicFog.ts`: Atmospheric density adjustments mimicking early Beta fog distance.
 - `netherIce.ts`: Prevents water creation in the Nether while preserving classic ice block placement.

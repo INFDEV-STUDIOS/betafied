@@ -23,7 +23,7 @@ function placeIsland(): void {
 
     try {
         const end = world.getDimension(CONFIG.DIMENSION);
-        end.runCommand(`structure load ${CONFIG.STRUCTURE_NAME} ${CONFIG.STRUCTURE_POS.x} ${CONFIG.STRUCTURE_POS.y} ${CONFIG.STRUCTURE_POS.z}`);
+        world.structureManager.place(CONFIG.STRUCTURE_NAME, end, CONFIG.STRUCTURE_POS);
         world.setDynamicProperty("betafied:island_placed", true);
     } catch (e) {
         reportError({

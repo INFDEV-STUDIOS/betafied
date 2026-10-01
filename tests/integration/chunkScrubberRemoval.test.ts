@@ -45,7 +45,7 @@ interface TestDimension {
     isChunkLoaded(location: { x: number; y: number; z: number }): boolean;
     getBlocks(volume: any, filter: any): { getBlockLocationIterator(): IterableIterator<{ x: number; y: number; z: number }> };
     containsBlock(volume: any, filter: any): boolean;
-    runCommand(command: string): { successCount: number };
+    fillBlocks(volume: any, block: string, options?: any): void;
 }
 
 /**
@@ -106,9 +106,9 @@ function scrubDimension(blocks: Map<string, RecordedBlock>): TestDimension {
             });
             return found;
         },
-        runCommand(command) {
-            commands.push(command);
-            return { successCount: 1 };
+        fillBlocks(volume, block, options) {
+            const replace = options?.blockFilter?.includeTypes?.[0];
+            commands.push(`fill ${volume.from.x} ${volume.from.y} ${volume.from.z} ${volume.to.x} ${volume.to.y} ${volume.to.z} ${block}${replace === undefined ? "" : ` replace ${replace}`}`);
         }
     };
 }

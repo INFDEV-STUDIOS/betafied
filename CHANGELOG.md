@@ -29,10 +29,12 @@ there instead of walking every block in script.
   types in this band", so an empty range prunes its entire subtree in one native scan. Probing the
   entries one at a time was the single largest cost in the script tick, and nearly every one of those
   scans returned nothing.
-- Conversions are issued as native `fill` commands, thousands of blocks per command, and only for a
-  type that is genuinely present. A chunk that used to cost tens of thousands of script calls now
-  costs a couple of dozen engine calls.
-- Bands are sized to exactly the engine's fill ceiling, so no band top is ever paid for as slack.
+- Conversions go through the native block API (`Dimension.fillBlocks`) rather than the `fill`
+  command — no command parsing, no 32,768-block cap, and only for a type that is genuinely present.
+  A chunk that used to cost tens of thousands of script calls now costs a couple of dozen engine
+  calls.
+- Bands are sized so one volume query stays at 32,768 blocks, which bounds a single native scan and
+  gives the job a useful place to yield.
 - A cleaned chunk is re-verified on a long timer rather than re-scanned continuously. The old
   cadence re-walked the same nine chunks around a standing player ten times a minute, forever, which
   is what the profiler showed dominating the server tick. The rescan still exists for terrain that
@@ -137,16 +139,22 @@ rather than a single custom biome that asked the engine to replace the others.
 Beta's Overworld was 128 blocks tall, with a jagged bedrock floor at Y=0 and nothing beneath it.
 The world now ends at Y=0 the same way.
 
-- An addon cannot shorten the Overworld, so the sub-zero column is ballasted with stone and capped
-  with bedrock instead. It costs about five native `fill` commands per chunk, folded into the scrub
-  pass that already runs there — no new tick job and no per-column script work, which would be 16k
-  calls and a watchdog kill.
-- The bedrock cap is uneven: a deterministic per-chunk pattern stacks a few ragged layers on top of
-  the base, so mining stops at a different height column to column the way Beta's floor did.
-- The deepslate layer, deep dark, negative-Y caverns and aquifers all end up sealed beneath the cap,
-  so the deepslate-to-stone conversions now only matter above the floor. The fine scrub pass no
-  longer walks the sub-zero column, and breaking a block below Y=0 in the Overworld is vetoed as a
-  guard against opening the void.
+- An addon cannot shorten the Overworld, so a rough bedrock floor is laid at Y=0 instead. Only the
+  floor is written — the sub-zero column is left as native terrain, since survival players cannot
+  break through bedrock and never see it. It is folded into the scrub pass that already runs there
+  and goes through the native block API rather than the `fill` command — no new tick job and no
+  per-column script work, which would be 16k calls and a watchdog kill.
+- The floor is uneven at block resolution: a deterministic heightmap merged into horizontal runs, so
+  mining stops at a different height column to column the way Beta's floor did.
+- The deepslate layer, deep dark, negative-Y caverns and aquifers all stay below the floor, hidden
+  behind the unbreakable bedrock cap. The fine scrub pass no longer walks the sub-zero column, and
+  breaking a block below Y=0 in the Overworld is vetoed as a guard against opening the void.
+- Bedrock left above the floor ceiling (Y=3) by a floor written under the old math is repaired back
+  to air. The pass is gated on a native presence probe, so a chunk with nothing above the ceiling
+  never pays for a write.
+- The floor is sealed a chunk out from the player in every direction, nearest chunk first. A pass
+  claims a chunk before sweeping it and releases the claim when the sweep finishes, so a sweep that
+  spans ticks no longer has the next pass re-seal the same chunk while the rest of the ring starves.
 
 ### Chests
 

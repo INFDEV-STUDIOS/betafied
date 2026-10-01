@@ -1,52 +1,75 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { solidifyBetaFloor } from "../../packs/BP/scripts/world/chunkScrubber.js";
+import { repairFloorOverflow, solidifyBetaFloor } from "../../packs/BP/scripts/world/chunkScrubber.js";
 
-function capturingDimension(id = "minecraft:overworld") {
+/**
+ * Records the native fill calls the way the scrubber makes them. The code talks to the block API
+ * rather than to commands, so the stub renders each volume back into the familiar `fill` shape to
+ * keep the assertions readable.
+ */
+function capturingDimension(id = "minecraft:overworld", strayBedrockAt: number | null = null) {
     const commands: string[] = [];
     return {
         id,
         heightRange: { min: -64, max: 319 },
         commands,
-        runCommand(command: string) {
-            commands.push(command);
-            return { successCount: 1 };
+        containsBlock(
+            volume: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } },
+            filter: { includeTypes?: string[] }
+        ) {
+            if (strayBedrockAt === null) return false;
+            if (!filter.includeTypes?.includes("minecraft:bedrock")) return false;
+            return volume.from.y <= strayBedrockAt && strayBedrockAt <= volume.to.y;
+        },
+        fillBlocks(
+            volume: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } },
+            block: string,
+            options?: { blockFilter?: { includeTypes?: string[] } }
+        ) {
+            const { from, to } = volume;
+            const replace = options?.blockFilter?.includeTypes?.[0];
+            commands.push(`fill ${from.x} ${from.y} ${from.z} ${to.x} ${to.y} ${to.z} ${block}${replace === undefined ? "" : ` replace ${replace}`}`);
+            return { getBlockLocationIterator: () => ([] as { x: number; y: number; z: number }[])[Symbol.iterator]() };
         }
     };
 }
 
 describe("Beta floor - deep world sealing", () => {
-    it("ballasts the sub-zero column and caps it with a flat bedrock floor", () => {
+    it("seals Y=0 with a full bedrock base and leaves the sub-zero column alone", () => {
         const dim = capturingDimension();
         solidifyBetaFloor(dim as never, 0, 0);
 
         assert.ok(
-            dim.commands.includes("fill 0 -63 0 15 -1 15 minecraft:stone"),
-            `expected sub-zero ballast, got: ${dim.commands.join(" | ")}`
+            dim.commands.includes("fill 0 0 0 15 0 15 minecraft:bedrock"),
+            `expected a full bedrock base at Y=0, got: ${dim.commands.join(" | ")}`
         );
         assert.ok(
-            dim.commands.includes("fill 0 0 0 15 0 15 minecraft:bedrock"),
-            "expected a flat bedrock cap at Y=0"
+            !dim.commands.some(c => c.includes("minecraft:stone")),
+            `expected no sub-zero ballast, got: ${dim.commands.join(" | ")}`
         );
     });
 
-    it("stacks a few uneven bedrock layers so the cap is not a mirror", () => {
+    it("builds the floor from a rough heightmap instead of stacked full-chunk slabs", () => {
         const dim = capturingDimension();
         solidifyBetaFloor(dim as never, 4, -7);
 
         const x1 = 64;
         const z1 = -112;
-        const layers = dim.commands.filter(c =>
-            c.startsWith(`fill `) && / minecraft:bedrock$/.test(c) && !c.includes(` ${x1} 0 `)
-        );
+        const bedrock = dim.commands.filter(c => c.startsWith("fill ") && / minecraft:bedrock$/.test(c));
+        const base = bedrock.filter(c => c === `fill ${x1} 0 ${z1} ${x1 + 15} 0 ${z1 + 15} minecraft:bedrock`);
 
-        assert.equal(layers.length, 3, `expected 3 rough layers, got ${layers.join(" | ")}`);
+        assert.equal(base.length, 1, "expected exactly one full-chunk bedrock base at Y=0");
 
-        for (const command of layers) {
-            const [, fx1, fy, fz1, fx2, , fz2] = command.split(" ");
-            assert.ok(Number(fy) >= 1 && Number(fy) <= 3, "rough layers sit just above the base");
-            assert.ok(Number(fx1) >= x1 && Number(fx2) <= x1 + 15, "layers stay inside the chunk in X");
-            assert.ok(Number(fz1) >= z1 && Number(fz2) <= z1 + 15, "layers stay inside the chunk in Z");
+        const bumps = bedrock.filter(c => c !== base[0]);
+        assert.ok(bumps.length > 3, `expected many small bumps, got ${bumps.length}: ${bumps.join(" | ")}`);
+
+        for (const command of bumps) {
+            const [, fx1, fy1, fz1, fx2, fy2, fz2] = command.split(" ");
+            assert.ok(Number(fy1) >= 1 && Number(fy2) <= 3, "bumps sit just above the base");
+            assert.ok(Number(fy2) >= Number(fy1), "each bump is a contiguous vertical run");
+            assert.ok(Number(fx1) >= x1 && Number(fx2) <= x1 + 15, "bumps stay inside the chunk in X");
+            assert.ok(Number(fz1) >= z1 && Number(fz2) <= z1 + 15, "bumps stay inside the chunk in Z");
+            assert.ok(Number(fx2) - Number(fx1) + 1 < 16, "no bump spans a whole chunk edge");
         }
     });
 
@@ -67,6 +90,36 @@ describe("Beta floor - deep world sealing", () => {
         const end = capturingDimension("minecraft:the_end");
         solidifyBetaFloor(nether as never, 0, 0);
         solidifyBetaFloor(end as never, 0, 0);
+
+        assert.deepEqual(nether.commands, []);
+        assert.deepEqual(end.commands, []);
+    });
+});
+
+describe("Beta floor - stray bedrock repair", () => {
+    it("clears bedrock above the ceiling only when the chunk actually holds it", () => {
+        const stray = capturingDimension("minecraft:overworld", 8);
+        repairFloorOverflow(stray as never, 0, 0);
+
+        assert.deepEqual(
+            stray.commands,
+            ["fill 0 4 0 15 131 15 minecraft:air replace minecraft:bedrock"],
+            `expected one clear above the ceiling, got: ${stray.commands.join(" | ")}`
+        );
+    });
+
+    it("leaves a chunk with no stray bedrock untouched", () => {
+        const clean = capturingDimension("minecraft:overworld");
+        repairFloorOverflow(clean as never, 0, 0);
+
+        assert.deepEqual(clean.commands, [], "a clean chunk must not pay for a write");
+    });
+
+    it("never touches the Nether or the End", () => {
+        const nether = capturingDimension("minecraft:the_nether", 8);
+        const end = capturingDimension("minecraft:the_end", 8);
+        repairFloorOverflow(nether as never, 0, 0);
+        repairFloorOverflow(end as never, 0, 0);
 
         assert.deepEqual(nether.commands, []);
         assert.deepEqual(end.commands, []);

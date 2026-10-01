@@ -26,8 +26,8 @@
             "type": "data",
             "uuid": "b93641bd-9008-113a-b5ad-245bdb67eaec",
             "version": [
-                4,
-                3,
+                5,
+                0,
                 0
             ]
         },
@@ -37,8 +37,8 @@
             "uuid": "871745cf-815e-a830-c396-c36823c17849",
             "entry": "scripts/main.js",
             "version": [
-                4,
-                3,
+                5,
+                0,
                 0
             ]
         }
