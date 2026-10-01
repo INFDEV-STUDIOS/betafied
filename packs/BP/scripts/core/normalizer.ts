@@ -159,3 +159,58 @@ export function normalizeBlock(blockId: string): NormalizationResult {
     }
     return normalizeItem(blockId);
 }
+
+/**
+ * Maps a vanilla placer item to the custom `bh:` item the inventory sweeper retypes it into.
+ *
+ * The sweep and the drop rewriter must agree on the final identifier: a drop left as the vanilla id
+ * is a different item from the stack it is destined for, so the engine has no stack to merge a second
+ * pickup into and the inventory fills with hand-stacked singles. Resolving through the same table on
+ * both paths keeps the ground item and the inventory item identical, so the engine merges natively.
+ */
+export function resolvePlacerReplacement(id: string): string | undefined {
+    if (!id.startsWith("minecraft:")) {
+        return undefined;
+    }
+
+    const bareId = id.slice(10);
+
+    if (bareId === "wood" || bareId === "log" || bareId === "log2") {
+        return "bh:oak_log";
+    }
+    if (bareId.endsWith("_log") || bareId.endsWith("_wood") || bareId.endsWith("_stem") || bareId.endsWith("_hyphae") || bareId.startsWith("stripped_")) {
+        if (bareId.includes("spruce")) return "bh:spruce_log";
+        if (bareId.includes("birch")) return "bh:birch_log";
+        return "bh:oak_log";
+    }
+
+    if (bareId === "chest") {
+        // The Beta chest is the custom block: it wears the era's model and its halves pair through
+        // script, so a vanilla chest in a hotbar would place a block that never pairs.
+        return "bh:chest";
+    }
+
+    if (bareId.endsWith("_stairs")) {
+        const prefix = bareId.replace(/_mosaic_stairs|_stairs/, "");
+        const isWood = prefix === "oak" || prefix === "spruce" || prefix === "birch" ||
+            prefix === "jungle" || prefix === "acacia" || prefix === "dark_oak" ||
+            prefix === "mangrove" || prefix === "cherry" || prefix === "pale_oak" ||
+            prefix === "bamboo" || prefix === "crimson" || prefix === "warped";
+        return isWood ? "bh:oak_stairs" : "bh:cobblestone_stairs";
+    }
+
+    if (bareId.endsWith("_slab") || bareId.startsWith("stone_block_slab")) {
+        if (bareId.includes("cobble")) {
+            return "bh:cobblestone_slab";
+        }
+        if (bareId.includes("sandstone")) {
+            return "bh:sandstone_slab";
+        }
+        if (isStoneCompound(bareId) || bareId.startsWith("stone_block_slab") || bareId === "stone_slab" || bareId === "smooth_stone_slab") {
+            return "bh:stone_slab";
+        }
+        return "bh:wooden_slab";
+    }
+
+    return undefined;
+}
