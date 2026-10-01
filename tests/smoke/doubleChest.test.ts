@@ -5,16 +5,21 @@ import { resolve } from "node:path";
 import {
     DOUBLE_CHEST_ID,
     DOUBLE_CHEST_SLOTS,
+    INVERSE_DIRECTION,
+    PAIR_LAYOUTS,
+    PAIR_STATE_BY_LATCH,
     SINGLE_CHEST_ID,
     SINGLE_CHEST_SLOTS,
+    clampSlots,
     dropOfflineViewers,
     hasAnyItem,
     mergeContents,
-    orderPair,
     pairKey,
+    partHome,
     planClose,
     planOpen,
     planOpenBlock,
+    planPair,
     planPlacement,
     planSweep,
     resolveHalf
@@ -40,6 +45,28 @@ function texturesOf(block: any): string[] {
     );
 }
 
+// The viewer's left when looking at the latch: the half that must own slots 0-26.
+const VIEWER_LEFT: Record<string, { x: number; z: number }> = {
+    south: { x: -1, z: 0 },
+    north: { x: 1, z: 0 },
+    east: { x: 0, z: 1 },
+    west: { x: 0, z: -1 }
+};
+
+const NEIGHBOUR_OFFSETS = [
+    { x: 1, y: 0, z: 0 },
+    { x: -1, y: 0, z: 0 },
+    { x: 0, y: 0, z: 1 },
+    { x: 0, y: 0, z: -1 }
+];
+
+const LATCHES = ["north", "south", "east", "west"] as const;
+
+function permutationFor(part: number, state: string): any {
+    const condition = `q.block_state('minecraft:multi_block_part') == ${part} && q.block_state('minecraft:cardinal_direction') == '${state}'`;
+    return doubleChest.permutations.find((p: any) => p.condition === condition);
+}
+
 describe("Classic Block Contract - Beta 1.7.3 double chest", () => {
     it("spans two blocks so the halves can share one inventory", () => {
         assert.equal(doubleChest.description.identifier, DOUBLE_CHEST_ID);
@@ -49,9 +76,11 @@ describe("Classic Block Contract - Beta 1.7.3 double chest", () => {
             direction: "east"
         });
 
-        // Without placement_direction the part axis stays east, so the pair never
-        // rotates out from under the fixed south-facing latch.
-        assert.equal(doubleChest.description.traits["minecraft:placement_direction"], undefined);
+        // `direction` is only the fallback for a pair with no state to read: the trait hands the
+        // part axis to cardinal_direction, which is what lets one block pair on either axis.
+        assert.deepEqual(doubleChest.description.traits["minecraft:placement_direction"], {
+            enabled_states: ["minecraft:cardinal_direction"]
+        });
     });
 
     it("holds twice the slots of a single chest", () => {
@@ -84,15 +113,58 @@ describe("Classic Block Contract - Beta 1.7.3 double chest", () => {
         assert.equal(movementType, "immovable", "pistons must not be able to split the pair");
     });
 
-    it("looks like two halves of one chest rather than two copies of one", () => {
-        assert.deepEqual(doubleChest.permutations.map((p: any) => p.condition), [
-            "q.block_state('minecraft:multi_block_part') == 1"
-        ]);
-        assert.notEqual(
-            doubleChest.components["minecraft:material_instances"].south.texture,
-            doubleChest.permutations[0].components["minecraft:material_instances"].south.texture,
-            "the eastern half must wear the right-hand face texture"
-        );
+    it("dresses both halves for every layout the script can build", () => {
+        assert.equal(doubleChest.permutations.length, 8, "two halves across four layouts");
+
+        for (const [state, layout] of Object.entries(PAIR_LAYOUTS)) {
+            const back = INVERSE_DIRECTION[layout.latch];
+
+            for (const part of [0, 1]) {
+                const permutation = permutationFor(part, state);
+                assert.ok(permutation, `the ${state} layout is missing its part ${part} permutation`);
+
+                const instances = permutation.components["minecraft:material_instances"];
+                const half = part === 0 ? "left" : "right";
+
+                assert.equal(
+                    instances[layout.latch].texture,
+                    `bh_chest_${half}_front`,
+                    `${state} part ${part} must wear its ${half} face on the ${layout.latch} side`
+                );
+                assert.equal(instances[back].texture, `bh_chest_${half}_back`, `${state} part ${part} back`);
+                assert.equal(instances["up"].texture, "bh_chest_top");
+                assert.equal(instances["down"].texture, "bh_chest_top");
+            }
+        }
+    });
+
+    it("keeps every latch on a long face with part 0 on the viewer's left", () => {
+        for (const [state, layout] of Object.entries(PAIR_LAYOUTS)) {
+            const axis = layout.step.x !== 0 ? "x" : "z";
+            const latchAxis = layout.latch === "east" || layout.latch === "west" ? "x" : "z";
+
+            assert.notEqual(latchAxis, axis, `${state}: a latch cannot sit on the end the halves run toward`);
+            assert.equal(PAIR_STATE_BY_LATCH[layout.latch], state, "the latch lookup must mirror the layouts");
+
+            // Slots 0-26 belong to the left half, so part 1 has to run from part 0 toward the
+            // viewer's right when they stand in front of the latch.
+            const left = VIEWER_LEFT[layout.latch];
+            assert.equal(
+                layout.step.x * left.x + layout.step.z * left.z,
+                -1,
+                `${state}: part 0 must stay on the viewer's left`
+            );
+        }
+    });
+
+    it("inverts a layout by flipping its step", () => {
+        for (const [state, layout] of Object.entries(PAIR_LAYOUTS)) {
+            assert.deepEqual(
+                PAIR_LAYOUTS[INVERSE_DIRECTION[state]].step,
+                { x: 0 - layout.step.x, y: 0 - layout.step.y, z: 0 - layout.step.z },
+                `${state} inverse`
+            );
+        }
     });
 
     it("reads as a large chest in the screen it opens", () => {
@@ -214,15 +286,86 @@ describe("Double chest mirror rules", () => {
 });
 
 describe("Chest relocation helpers", () => {
-    it("always puts the western chest first so part 0 is deterministic", () => {
-        const east = { x: 12, z: 4 };
-        const west = { x: 11, z: 4 };
+    it("plans a pair for a chest placed beside the other on either axis", () => {
+        // Latch north with the partner to the east: the halves run along x, so part 0 is the eastern
+        // cell and the latches meet on the north face.
+        assert.deepEqual(planPair("north", [{ offset: { x: 1, y: 0, z: 0 }, latch: "north" }]), {
+            state: "west",
+            latch: "north",
+            masterOffset: { x: 1, y: 0, z: 0 }
+        });
 
-        assert.deepEqual(orderPair(east, west), [west, east]);
-        assert.deepEqual(orderPair(west, east), [west, east]);
+        // Latch east with the partner to the north: "north" lays part 1 to the north, which is the
+        // neighbour, so the chest the player just placed is part 0.
+        assert.deepEqual(planPair("east", [{ offset: { x: 0, y: 0, z: -1 }, latch: "east" }]), {
+            state: "north",
+            latch: "east",
+            masterOffset: { x: 0, y: 0, z: 0 }
+        });
     });
 
-    it("lands the western inventory in slots 0-26 and the eastern one in 27-53", () => {
+    it("puts part 0 on the cell the layout's step runs from", () => {
+        const origin = { x: 0, y: 0, z: 0 };
+
+        for (const latch of LATCHES) {
+            for (const offset of NEIGHBOUR_OFFSETS) {
+                const plan = planPair(latch, [{ offset, latch }]);
+                assert.ok(plan, `${latch} beside ${offset.x},${offset.z} must pair`);
+
+                const step = PAIR_LAYOUTS[plan.state].step;
+                const master = plan.masterOffset;
+                const shadow = { x: master.x + step.x, y: master.y + step.y, z: master.z + step.z };
+                const other =
+                    master.x === offset.x && master.y === offset.y && master.z === offset.z ? origin : offset;
+
+                assert.equal(PAIR_LAYOUTS[plan.state].latch, plan.latch, "the layout must wear the planned latch");
+                assert.deepEqual(shadow, other, "part 1 must be the other half of the pair");
+            }
+        }
+    });
+
+    it("takes the neighbour's latch when the placed chest's own latch is on the end", () => {
+        assert.deepEqual(planPair("east", [{ offset: { x: 1, y: 0, z: 0 }, latch: "south" }]), {
+            state: "east",
+            latch: "south",
+            masterOffset: { x: 0, y: 0, z: 0 }
+        });
+    });
+
+    it("falls back to a readable side for two chests placed end to end", () => {
+        // Latch north with the partner directly north leaves no latch on a long face at all.
+        assert.deepEqual(planPair("north", [{ offset: { x: 0, y: 0, z: -1 }, latch: "north" }]), {
+            state: "north",
+            latch: "east",
+            masterOffset: { x: 0, y: 0, z: 0 }
+        });
+    });
+
+    it("prefers the partner that keeps the latch the placer just saw", () => {
+        const plan = planPair("south", [
+            { offset: { x: 0, y: 0, z: 1 }, latch: "east" },
+            { offset: { x: -1, y: 0, z: 0 }, latch: "south" }
+        ]);
+
+        assert.equal(plan?.latch, "south");
+        assert.equal(plan?.state, "east");
+        assert.deepEqual(plan?.masterOffset, { x: -1, y: 0, z: 0 });
+    });
+
+    it("ignores anything that is not one step along an axis", () => {
+        assert.equal(planPair("north", [{ offset: { x: 1, y: 0, z: 1 }, latch: "north" }]), undefined);
+        assert.equal(planPair("north", [{ offset: { x: 0, y: 1, z: 0 }, latch: "north" }]), undefined);
+        assert.equal(planPair("north", []), undefined);
+
+        // Neither chest can offer a latch: the pair still forms on a readable side.
+        assert.deepEqual(planPair(undefined, [{ offset: { x: 1, y: 0, z: 0 }, latch: undefined }]), {
+            state: "east",
+            latch: "south",
+            masterOffset: { x: 0, y: 0, z: 0 }
+        });
+    });
+
+    it("lands the left half's inventory in slots 0-26 and the right half's in 27-53", () => {
         const west = ["a", undefined, "b"];
         const east = [undefined, "c"];
 
@@ -237,16 +380,26 @@ describe("Chest relocation helpers", () => {
         const west = { x: 5, y: 64, z: 5 };
         const east = { x: 6, y: 64, z: 5 };
 
-        assert.deepEqual(resolveHalf(0, west), { half: "master", master: west, shadow: east });
-        assert.deepEqual(resolveHalf(1, east), { half: "shadow", master: west, shadow: east });
+        assert.deepEqual(resolveHalf(0, west, "east"), { half: "master", master: west, shadow: east });
+        assert.deepEqual(resolveHalf(1, east, "east"), { half: "shadow", master: west, shadow: east });
+    });
+
+    it("reads a pair running north to south the same way", () => {
+        const south = { x: 2, y: 70, z: 9 };
+        const north = { x: 2, y: 70, z: 8 };
+
+        assert.deepEqual(resolveHalf(0, south, "north"), { half: "master", master: south, shadow: north });
+        assert.deepEqual(resolveHalf(1, north, "north"), { half: "shadow", master: south, shadow: north });
     });
 
     it("refuses a part state that is not one of the two halves", () => {
         const location = { x: 0, y: 0, z: 0 };
 
-        assert.equal(resolveHalf(2, location), undefined);
-        assert.equal(resolveHalf(-1, location), undefined);
-        assert.equal(resolveHalf(undefined, location), undefined);
+        assert.equal(resolveHalf(2, location, "east"), undefined);
+        assert.equal(resolveHalf(-1, location, "east"), undefined);
+        assert.equal(resolveHalf(undefined, location, "east"), undefined);
+        assert.equal(resolveHalf(0, location, undefined), undefined, "a half with no layout cannot be resolved");
+        assert.equal(resolveHalf(0, location, "up"), undefined, "only the four cardinal layouts exist");
     });
 
     it("keeps pair keys dimension aware", () => {
@@ -288,5 +441,27 @@ describe("Chest relocation helpers", () => {
         assert.equal(hasAnyItem([undefined, undefined]), false);
         assert.equal(hasAnyItem([undefined, "a"]), true);
         assert.equal(hasAnyItem([]), false);
+    });
+
+    it("finds the half the engine made part 0", () => {
+        // The engine places the parts itself, so the merge has to read back which cell it made the
+        // pair's home rather than assume the one the plan called the master.
+        assert.equal(partHome(0, 1), "master");
+        assert.equal(partHome(1, 0), "shadow");
+        assert.equal(partHome("0", "1"), "master", "a part state read back as text still names its cell");
+        assert.equal(partHome(0, 0), undefined, "two part 0s are not one pair");
+        assert.equal(partHome(1, 1), undefined, "two part 1s are not one pair");
+        assert.equal(partHome(undefined, 1), undefined);
+        assert.equal(partHome(0, undefined), undefined);
+    });
+
+    it("clamps slot work to the count the container actually reports", () => {
+        // A half that kept the 27 slots of the single it was converted from must not be read past
+        // slot 26: every slot the pair touches is bounded by the container's own size.
+        assert.equal(clampSlots(DOUBLE_CHEST_SLOTS, SINGLE_CHEST_SLOTS), SINGLE_CHEST_SLOTS);
+        assert.equal(clampSlots(SINGLE_CHEST_SLOTS, DOUBLE_CHEST_SLOTS), SINGLE_CHEST_SLOTS);
+        assert.equal(clampSlots(DOUBLE_CHEST_SLOTS, DOUBLE_CHEST_SLOTS), DOUBLE_CHEST_SLOTS);
+        assert.equal(clampSlots(DOUBLE_CHEST_SLOTS, undefined), 0, "a container with no readable size is never addressed");
+        assert.equal(clampSlots(DOUBLE_CHEST_SLOTS, 0), 0);
     });
 });

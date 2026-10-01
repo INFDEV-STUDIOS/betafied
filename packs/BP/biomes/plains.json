@@ -1,18 +1,16 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:plains"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0.5,
-        "downfall": 0.5
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          0.5,
-          0.8
+        "temperature": 0.8,
+        "downfall": 0.4,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,33 +24,16 @@
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "medium",
-            15
-          ],
-          [
-            "warm",
-            8
-          ],
-          [
-            "cold",
-            8
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "animal",
-          "bee_habitat",
-          "monster",
           "overworld",
+          "monster",
+          "animal",
           "plains"
         ]
       },
       "minecraft:creature_spawn_probability": {
-        "probability": 0.07
+        "probability": 0.05
       }
     }
   }

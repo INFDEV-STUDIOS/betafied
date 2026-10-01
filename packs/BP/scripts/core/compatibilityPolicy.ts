@@ -105,22 +105,6 @@ export const ITEM_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze(
     "minecraft:smooth_basalt": "minecraft:stone",
     "minecraft:cobbled_deepslate": "minecraft:cobblestone",
 
-    "minecraft:magma_block": "minecraft:netherrack",
-    "minecraft:crimson_nylium": "minecraft:netherrack",
-    "minecraft:warped_nylium": "minecraft:netherrack",
-    "minecraft:nether_wart_block": "minecraft:netherrack",
-    "minecraft:warped_wart_block": "minecraft:netherrack",
-    "minecraft:shroomlight": "minecraft:netherrack",
-    "minecraft:basalt": "minecraft:netherrack",
-    "minecraft:polished_basalt": "minecraft:netherrack",
-    "minecraft:blackstone": "minecraft:netherrack",
-    "minecraft:gilded_blackstone": "minecraft:netherrack",
-    "minecraft:ancient_debris": "minecraft:netherrack",
-    "minecraft:nether_gold_ore": "minecraft:netherrack",
-    "minecraft:quartz_ore": "minecraft:netherrack",
-    "minecraft:crying_obsidian": "minecraft:obsidian",
-    "minecraft:soul_soil": "minecraft:soul_sand",
-
     "minecraft:copper_ingot": "minecraft:cobblestone",
     "minecraft:raw_copper": "minecraft:cobblestone",
     "minecraft:copper_ore": "minecraft:stone",
@@ -338,17 +322,17 @@ export const BLOCK_BULK_REPLACEMENTS: readonly [string, string][] = [
     ["minecraft:green_terracotta", "minecraft:sandstone"],
     ["minecraft:red_sandstone", "minecraft:sandstone"],
 
-    ["minecraft:blackstone", "minecraft:netherrack"],
-    ["minecraft:basalt", "minecraft:netherrack"],
-    ["minecraft:polished_basalt", "minecraft:netherrack"],
-    ["minecraft:smooth_basalt", "minecraft:netherrack"],
-    ["minecraft:crimson_nylium", "minecraft:netherrack"],
-    ["minecraft:warped_nylium", "minecraft:netherrack"],
+    // Beta 1.7.3's Nether held no ores, but vanilla ties quartz, gold and debris to the `nether`
+    // biome tag our single Nether biome carries, so the scrubber refills them with netherrack.
+    ["minecraft:quartz_ore", "minecraft:netherrack"],
     ["minecraft:nether_gold_ore", "minecraft:netherrack"],
     ["minecraft:ancient_debris", "minecraft:netherrack"],
-    ["minecraft:soul_soil", "minecraft:soul_sand"],
 
-    ["minecraft:magma_block", "minecraft:netherrack"],
+    // Magma is drawn by the engine, not the biome, so it survives our Nether override as the rim of
+    // every lava sea. Beta 1.7.3 had gravel beaches there instead, and magma's own scrub rule would
+    // otherwise erase that rim to air and leave the coast punched full of holes.
+    ["minecraft:magma", "minecraft:gravel"],
+
     ["minecraft:packed_ice", "minecraft:ice"],
     ["minecraft:blue_ice", "minecraft:ice"],
     ["minecraft:prismarine", "minecraft:stone"],
@@ -382,6 +366,18 @@ export const BLOCK_FINE_REPLACEMENTS: Readonly<Record<string, string>> = {
     "minecraft:azalea": "minecraft:air",
     "minecraft:flowering_azalea": "minecraft:air",
     "minecraft:mangrove_roots": "minecraft:gravel",
+
+    // Full cubes that Beta has no counterpart for still have to land on a real block. Leaving them
+    // to the normalizer deletes them to air, which reads as a hole punched through the terrain.
+    "minecraft:beacon": "minecraft:obsidian",
+    "minecraft:respawn_anchor": "minecraft:obsidian",
+    "minecraft:conduit": "minecraft:stone",
+    "minecraft:stonecutter_block": "minecraft:stone",
+    // Ocean monuments are gone, but their blocks still arrive in creative-built worlds. These two
+    // are repeated from the bulk table on purpose: the fine pass is the backstop when a bulk fill
+    // cannot run (unloaded chunk), and a backstop that deletes the block would leave the hole.
+    "minecraft:prismarine": "minecraft:stone",
+    "minecraft:sea_lantern": "minecraft:glowstone",
     "minecraft:bamboo": "minecraft:air",
     "minecraft:sweet_berry_bush": "minecraft:air",
     "minecraft:large_fern": "minecraft:air",

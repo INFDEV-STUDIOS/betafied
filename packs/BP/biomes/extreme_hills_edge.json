@@ -1,18 +1,16 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:extreme_hills_edge"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0.2,
-        "downfall": 0.3
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          1.2,
-          2
+        "temperature": 0.7,
+        "downfall": 0.8,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,26 +24,16 @@
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "medium",
-            8
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "animal",
-          "edge",
-          "extreme_hills",
+          "overworld",
           "monster",
-          "mountain",
-          "overworld"
+          "animal",
+          "forest"
         ]
       },
       "minecraft:creature_spawn_probability": {
-        "probability": 0.07
+        "probability": 0.05
       }
     }
   }

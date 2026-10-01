@@ -5,21 +5,22 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import SftpClient from "ssh2-sftp-client";
 import nbt from "prismarine-nbt";
+import { loadEnv } from "./lib/env.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-loadDotEnv(path.join(ROOT, ".env"));
+const env = loadEnv(ROOT);
 
 const COM_MOJANG =
-  process.env.COM_MOJANG ??
+  env.COM_MOJANG ??
   path.join(
-    process.env.HOME ?? "",
+    env.HOME ?? "",
     "Library/Application Support/Minecraft Bedrock Launcher/MinecraftData/games/com.mojang",
   );
 
 const CONFIG = {
   host: requireEnv("BETAFIED_SFTP_HOST"),
-  port: parseInt(process.env.BETAFIED_SFTP_PORT ?? "2022", 10),
+  port: parseInt(env.BETAFIED_SFTP_PORT ?? "2022", 10),
   username: requireEnv("BETAFIED_SFTP_USER"),
   password: requireEnv("BETAFIED_SFTP_PASSWORD"),
   localBp: path.join(COM_MOJANG, "development_behavior_packs", "betafied_bp"),
@@ -28,17 +29,8 @@ const CONFIG = {
   remoteRp: "/development_resource_packs/betafied_rp",
 };
 
-function loadDotEnv(file) {
-  if (!fs.existsSync(file)) return;
-  try {
-    process.loadEnvFile(file);
-  } catch (err) {
-    console.warn(`[push] could not read ${file}: ${err.message}`);
-  }
-}
-
 function requireEnv(name) {
-  const value = process.env[name];
+  const value = env[name];
   if (!value) {
     console.error(
       `[push] Missing ${name}. Add it to .env (see .env.example) or export it before pushing.`,

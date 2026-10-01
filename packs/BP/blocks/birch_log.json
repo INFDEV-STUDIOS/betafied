@@ -41,7 +41,12 @@
                 "sound": "wood"
             },
             "minecraft:display_name": "Birch Wood",
-            "minecraft:tags": ["log", "wood", "birch", "minecraft:is_axe_item_destructible"]
+            "minecraft:tags": [
+                "log",
+                "wood",
+                "birch",
+                "minecraft:is_axe_item_destructible"
+            ]
         }
     }
 }

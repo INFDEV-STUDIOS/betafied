@@ -441,6 +441,16 @@
         "mapping_type": "pressed"
       },
       {
+        "from_button_id": "button.menu_auto_place",
+        "to_button_id": "$button_auto_place",
+        "mapping_type": "pressed"
+      },
+      {
+        "from_button_id": "button.controller_secondary_select",
+        "to_button_id": "$button_auto_place",
+        "mapping_type": "pressed"
+      },
+      {
         "from_button_id": "button.menu_inventory_drop",
         "to_button_id": "button.drop_one",
         "mapping_type": "pressed"
@@ -449,6 +459,16 @@
         "from_button_id": "button.menu_inventory_drop_all",
         "to_button_id": "button.drop_all",
         "mapping_type": "pressed"
+      },
+      {
+        "from_button_id": "button.menu_select",
+        "to_button_id": "$coalesce_button",
+        "mapping_type": "double_pressed"
+      },
+      {
+        "from_button_id": "button.menu_ok",
+        "to_button_id": "$coalesce_button",
+        "mapping_type": "double_pressed"
       },
       {
         "to_button_id": "button.shape_drawing",
@@ -494,6 +514,16 @@
         "mapping_type": "pressed"
       },
       {
+        "from_button_id": "button.menu_auto_place",
+        "to_button_id": "$button_auto_place",
+        "mapping_type": "pressed"
+      },
+      {
+        "from_button_id": "button.controller_secondary_select",
+        "to_button_id": "$button_auto_place",
+        "mapping_type": "pressed"
+      },
+      {
         "from_button_id": "button.menu_inventory_drop",
         "to_button_id": "button.drop_one",
         "mapping_type": "pressed"
@@ -501,6 +531,10 @@
       {
         "from_button_id": "button.menu_inventory_drop_all",
         "to_button_id": "button.drop_all",
+        "mapping_type": "pressed"
+      },
+      {
+        "to_button_id": "button.shape_drawing",
         "mapping_type": "pressed"
       },
       {

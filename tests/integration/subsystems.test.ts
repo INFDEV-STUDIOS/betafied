@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-// Statically import all 30 production subsystem modules to provide direct test coverage
+// Statically import all production subsystem modules to provide direct test coverage
 import * as achievements from "../../packs/BP/scripts/player/achievements.js";
 import * as errorReporter from "../../packs/BP/scripts/core/errorReporter.js";
 import * as inventoryManager from "../../packs/BP/scripts/core/inventoryManager.js";
@@ -19,19 +19,19 @@ import * as redstoneMining from "../../packs/BP/scripts/interactions/redstoneMin
 import * as swordMining from "../../packs/BP/scripts/interactions/swordMining.js";
 import * as foodAndHealth from "../../packs/BP/scripts/player/foodAndHealth.js";
 import * as playerState from "../../packs/BP/scripts/player/playerState.js";
-import * as netherSpawnProtection from "../../packs/BP/scripts/world/netherSpawnProtection.js";
 import * as betaAnimalAI from "../../packs/BP/scripts/mobs/betaAnimalAI.js";
 import * as entityCleaner from "../../packs/BP/scripts/mobs/entityCleaner.js";
 import * as entitySpawnHandler from "../../packs/BP/scripts/mobs/entitySpawnHandler.js";
 import * as nightmares from "../../packs/BP/scripts/mobs/nightmares.js";
+import * as herobrine from "../../packs/BP/scripts/mobs/herobrine.js";
 import * as worldSpawn from "../../packs/BP/scripts/world/worldSpawn.js";
 import * as chunkScrubber from "../../packs/BP/scripts/world/chunkScrubber.js";
 import * as dimensionBoundary from "../../packs/BP/scripts/world/dimensionBoundary.js";
 import * as fenceConnectivity from "../../packs/BP/scripts/interactions/fenceConnectivity.js";
 import * as classicFog from "../../packs/BP/scripts/world/classicFog.js";
+import * as underwaterOverlay from "../../packs/BP/scripts/world/underwaterOverlay.js";
 import * as island from "../../packs/BP/scripts/world/island.js";
 import * as netherIce from "../../packs/BP/scripts/world/netherIce.js";
-import * as ruinedPortalScrubber from "../../packs/BP/scripts/world/ruinedPortalScrubber.js";
 import * as worldBorder from "../../packs/BP/scripts/world/worldBorder.js";
 
 describe("Subsystems Direct Integration Suite", () => {
@@ -54,19 +54,19 @@ describe("Subsystems Direct Integration Suite", () => {
             swordMining,
             foodAndHealth,
             playerState,
-            netherSpawnProtection,
             betaAnimalAI,
             entityCleaner,
             entitySpawnHandler,
             nightmares,
+            herobrine,
             worldSpawn,
             chunkScrubber,
             dimensionBoundary,
             fenceConnectivity,
             classicFog,
+            underwaterOverlay,
             island,
             netherIce,
-            ruinedPortalScrubber,
             worldBorder
         ];
 

@@ -202,7 +202,8 @@ class AchievementSystem {
         let hasFurnace = false;
         let hasIron = false;
 
-        for (let i = 0; i < inv.size; i++) {
+        const size = inv.size;
+        for (let i = 0; i < size; i++) {
             const item = inv.getItem(i);
             if (!item) continue;
             const id = item.typeId;

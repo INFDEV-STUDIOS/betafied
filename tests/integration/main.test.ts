@@ -55,6 +55,7 @@ describe("Main Integration Harness - Bedrock Server Script Loading", () => {
         assert.equal(tickManager.isRegistered("entityCleaner"), true, "entityCleaner must be registered with tickManager");
         assert.equal(tickManager.isRegistered("chunkScrubber"), true, "chunkScrubber must be registered with tickManager");
         assert.equal(tickManager.isRegistered("betaAnimalAI:jump"), true, "betaAnimalAI:jump must be registered with tickManager");
+        assert.equal(tickManager.isRegistered("underwaterOverlay"), true, "underwaterOverlay must be registered with tickManager");
     });
 
     it("verifies scheduled intervals contain valid callbacks and positive interval rates", () => {

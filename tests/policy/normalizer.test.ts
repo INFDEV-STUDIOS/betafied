@@ -92,11 +92,18 @@ describe("Heuristic Inverse Normalizer", () => {
             assert.deepEqual(normalizeBlock("minecraft:netherrack"), { action: "keep" });
         });
 
-        it("converts modern nether terrain blocks to netherrack", () => {
-            assert.deepEqual(normalizeBlock("minecraft:basalt"), { action: "convert", targetId: "minecraft:netherrack" });
-            assert.deepEqual(normalizeBlock("minecraft:blackstone"), { action: "convert", targetId: "minecraft:netherrack" });
-            assert.deepEqual(normalizeBlock("minecraft:crimson_nylium"), { action: "convert", targetId: "minecraft:netherrack" });
-            assert.deepEqual(normalizeBlock("minecraft:shroomlight"), { action: "convert", targetId: "minecraft:netherrack" });
+        it("strips the Nether's modern blocks and ores back to Beta terrain", () => {
+            // Vanilla ties these ores to the `nether` tag our single biome carries, so Beta 1.7.3's
+            // ore-free Nether needs them dissolved rather than left in the rock.
+            assert.deepEqual(normalizeBlock("minecraft:quartz_ore"), { action: "convert", targetId: "minecraft:netherrack" });
+            assert.deepEqual(normalizeBlock("minecraft:nether_gold_ore"), { action: "convert", targetId: "minecraft:netherrack" });
+            assert.deepEqual(normalizeBlock("minecraft:ancient_debris"), { action: "convert", targetId: "minecraft:netherrack" });
+
+            // Modern Nether terrain has neither a Beta counterpart nor a biome left to generate it.
+            assert.deepEqual(normalizeBlock("minecraft:basalt"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:blackstone"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:crimson_nylium"), { action: "remove" });
+            assert.deepEqual(normalizeBlock("minecraft:shroomlight"), { action: "remove" });
         });
 
         it("leaves modded blocks out of the scrubber heuristic", () => {

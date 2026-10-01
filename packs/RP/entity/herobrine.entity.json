@@ -1,0 +1,25 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "bh:herobrine",
+      "min_engine_version": "1.8.0",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/herobrine/herobrine_outfit_01"
+      },
+      "geometry": {
+        "default": "geometry.herobrine"
+      },
+      "animations": {
+        "stand": "animation.herobrine.stand",
+        "sneak": "animation.herobrine.sneak"
+      },
+      "render_controllers": [
+        "controller.render.herobrine"
+      ]
+    }
+  }
+}

@@ -23,10 +23,12 @@ import type {
     ItemUseAfterEvent,
     ItemUseBeforeEvent,
     PlayerBreakBlockAfterEvent,
+    PlayerBreakBlockBeforeEvent,
     PlayerDimensionChangeAfterEvent,
     PlayerGameModeChangeAfterEvent,
     PlayerInteractWithBlockBeforeEvent,
     PlayerInteractWithEntityBeforeEvent,
+    PlayerInventoryItemChangeAfterEvent,
     PlayerLeaveAfterEvent,
     PlayerPlaceBlockAfterEvent,
     PlayerSpawnAfterEvent
@@ -123,6 +125,15 @@ class EventBus {
         return this.subscribe("playerBreakBlock", callback, priority);
     }
 
+    /**
+     * Fires before a block breaks, so a handler can veto the break by setting
+     * `cancel`. Bedrock only exposes block *placement* as a beta beforeEvent; the
+     * break beforeEvent is stable and is the one handler we can rely on.
+     */
+    onPlayerBreakBlockBefore(callback: (event: PlayerBreakBlockBeforeEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("playerBreakBlockBefore", callback, priority);
+    }
+
     onPlayerDimensionChange(callback: (event: PlayerDimensionChangeAfterEvent) => void, priority: number = 0): () => void {
         return this.subscribe("playerDimensionChange", callback, priority);
     }
@@ -145,6 +156,10 @@ class EventBus {
 
     onPlayerGameModeChange(callback: (event: PlayerGameModeChangeAfterEvent) => void, priority: number = 0): () => void {
         return this.subscribe("playerGameModeChange", callback, priority);
+    }
+
+    onPlayerInventoryItemChange(callback: (event: PlayerInventoryItemChangeAfterEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("playerInventoryItemChange", callback, priority);
     }
 
     onItemStartUse(callback: (event: ItemStartUseAfterEvent) => void, priority: number = 0): () => void {
@@ -173,6 +188,7 @@ class EventBus {
         world.beforeEvents.playerInteractWithBlock.subscribe((e) => this.dispatch("playerInteractWithBlock", e));
         world.beforeEvents.playerInteractWithEntity.subscribe((e) => this.dispatch("playerInteractWithEntity", e));
         world.beforeEvents.itemUse.subscribe((e) => this.dispatch("itemUse", e));
+        world.beforeEvents.playerBreakBlock.subscribe((e) => this.dispatch("playerBreakBlockBefore", e));
 
         world.afterEvents.itemUse.subscribe((e) => this.dispatch("itemUseAfter", e));
         world.afterEvents.entitySpawn.subscribe((e) => this.dispatch("entitySpawn", e));
@@ -187,6 +203,7 @@ class EventBus {
         world.afterEvents.blockContainerOpened.subscribe((e) => this.dispatch("blockContainerOpened", e));
         world.afterEvents.blockContainerClosed.subscribe((e) => this.dispatch("blockContainerClosed", e));
         world.afterEvents.playerGameModeChange.subscribe((e) => this.dispatch("playerGameModeChange", e));
+        world.afterEvents.playerInventoryItemChange.subscribe((e) => this.dispatch("playerInventoryItemChange", e));
         world.afterEvents.itemStartUse.subscribe((e) => this.dispatch("itemStartUse", e));
         world.afterEvents.itemStopUse.subscribe((e) => this.dispatch("itemStopUse", e));
         world.afterEvents.itemReleaseUse.subscribe((e) => this.dispatch("itemReleaseUse", e));

@@ -1,5 +1,5 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:beach"
@@ -7,12 +7,10 @@
     "components": {
       "minecraft:climate": {
         "temperature": 0.8,
-        "downfall": 0.4
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
+        "downfall": 0.4,
+        "snow_accumulation": [
           0,
-          0.025
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -21,29 +19,35 @@
           "sea_floor_depth": 7,
           "top_material": "minecraft:sand",
           "mid_material": "minecraft:sand",
-          "foundation_material": "minecraft:stone",
+          "foundation_material": "minecraft:sandstone",
           "sea_material": "minecraft:water",
-          "sea_floor_material": "minecraft:gravel"
+          "sea_floor_material": "minecraft:sand"
         }
-      },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "medium",
-            3
-          ],
-          [
-            "warm",
-            3
-          ]
-        ]
       },
       "minecraft:tags": {
         "tags": [
-          "beach",
-          "monster",
           "overworld",
-          "warm"
+          "monster",
+          "beach"
+        ]
+      },
+      "minecraft:surface_material_adjustments": {
+        "adjustments": [
+          {
+            "materials": {
+              "top_material": "minecraft:gravel",
+              "sea_floor_material": "minecraft:gravel"
+            },
+            "noise_frequency_scale": 0.03125,
+            "noise_range": [
+              -1,
+              -0.6
+            ],
+            "height_range": [
+              "variable.sea_level - 3",
+              "variable.sea_level + 2"
+            ]
+          }
         ]
       }
     }

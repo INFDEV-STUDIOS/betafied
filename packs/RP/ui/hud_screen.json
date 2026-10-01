@@ -5,9 +5,6 @@
   "mob_effects_renderer": {
     "ignored": true
   },
-  "vignette_renderer": {
-    "ignored": true
-  },
   "horse_heart_renderer": {
     "ignored": true
   },
@@ -77,6 +74,59 @@
             1
           ]
         }
+      }
+    ]
+  },
+  // Beta 1.7.3 tinted the whole screen while the camera was under water. The tint hangs off the
+  // title string rather than the actionbar: the engine keeps the last actionbar in its factory
+  // binding after the fade, so the actionbar could only be talked out of a tint by pushing a decoy
+  // string, and both edges of the dive paid the actionbar's fade. The title binding is global, so
+  // this control reads it directly.
+  //
+  // It hangs off hud_content, the screen's own $screen_content panel, rather than root_panel: the
+  // vanilla root_panel declares no size, so a percentage image laid out as one of its children
+  // resolves against nothing and falls back to the texture's native 32x32. hud_content is the panel
+  // the screen itself sizes, which is where a percentage can actually resolve to the window.
+  //
+  // The tint zooms rather than stretches: keep_ratio lets the engine scale the 32x32 texture
+  // uniformly (and centers it), and the oversized frame is the cover trick. keep_ratio fits the
+  // draw inside the control, so the control has to oversize the window for that uniform draw to
+  // still reach every edge; 400% clears the widest aspect worth supporting (4:1), and the overflow
+  // simply falls off the screen.
+  "underwater_tint": {
+    "type": "image",
+    "texture": "textures/ui/underwater",
+    "anchor_from": "center",
+    "anchor_to": "center",
+    "size": [
+      "400%",
+      "400%"
+    ],
+    "layer": 100,
+    "keep_ratio": true,
+    "bilinear": true,
+    "bindings": [
+      {
+        "binding_name": "#hud_title_text_string",
+        "binding_name_override": "#tint_text"
+      },
+      {
+        "binding_type": "view",
+        "source_property_name": "(#tint_text = '_w')",
+        "target_property_name": "#visible"
+      }
+    ]
+  },
+  "hud_content": {
+    "modifications": [
+      {
+        "array_name": "controls",
+        "operation": "insert_front",
+        "value": [
+          {
+            "underwater_tint@hud.underwater_tint": {}
+          }
+        ]
       }
     ]
   },
@@ -486,49 +536,11 @@
       }
     ]
   },
-  "hud_actionbar_text": {
-    "type": "image",
-    "size": [
-      "400%",
-      "400%"
-    ],
-    "font_scale_factor": 0,
-    "texture": "textures/ui/underwater",
-    "alpha": "@hud.anim_actionbar_text_alpha_out",
-    "controls": [
-      {
-        "actionbar_message": {
-          "type": "label",
-          "font_scale_factor": 0,
-          "anchor_from": "center",
-          "anchor_to": "center",
-          "color": "$tool_tip_text",
-          "enable_profanity_filter": true,
-          "layer": 31,
-          "text": "$actionbar_text",
-          "localize": false,
-          "alpha": "@hud.anim_actionbar_text_background_alpha_out"
-        }
-      }
-    ]
-  },
-  "anim_actionbar_text_alpha_out": {
-    "duration": 0.4,
-    "from": 1,
-    "to": 0,
-    "destroy_at_end": "hud_actionbar_text",
-    "end_event": "hud_actionbar_text_complete"
-  },
-  "anim_actionbar_text_background_alpha_out": {
-    "duration": 0.4,
-    "from": "$actionbar_text_background_alpha",
-    "to": 0,
-    "destroy_at_end": "hud_actionbar_text",
-    "end_event": "hud_actionbar_text_complete"
-  },
   "hotbar_elipses_button": {
     "prevent_touch_input": true
   },
+  // The armor icons and the water tint both address the HUD through the title string, so any title
+  // starting with an underscore is ours and none of it may reach the player's screen.
   "hud_title_text/title_frame": {
     "bindings": [
       {
@@ -536,7 +548,7 @@
       },
       {
         "binding_type": "view",
-        "source_property_name": "(not ('%.2s' * #hud_title_text_string = '_a'))",
+        "source_property_name": "(not ('%.2s' * #hud_title_text_string = '_a') and (not ('%.2s' * #hud_title_text_string = '_w')))",
         "target_property_name": "#visible"
       }
     ]

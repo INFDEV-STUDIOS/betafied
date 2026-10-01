@@ -7,7 +7,8 @@ import {
     EquipmentSlot,
     EntityEquippableComponent,
     ItemComponentTypes,
-    GameMode
+    GameMode,
+    system
 } from "@minecraft/server";
 import {
     evaluateItemAction,
@@ -325,6 +326,61 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
 
             assert.equal(inv.getItem(0), undefined, "Netherite sword cleared on gamemode change");
             assert.equal(equippable.getEquipment(EquipmentSlot.Chest), undefined, "Elytra cleared on gamemode change");
+        });
+    });
+
+    describe("Event-driven sweep gating", () => {
+        function playerHolding(id: string, itemId: string): { player: Player; inv: Container } {
+            const player = new Player();
+            player.name = id;
+            player.id = id;
+            player.gameMode = GameMode.Survival;
+
+            const inv = new Container(36);
+            inv.setItem(0, new ItemStack(itemId, 1));
+            player.setComponent(EntityComponentTypes.Inventory, { container: inv });
+
+            mockPlayers.length = 0;
+            mockPlayers.push(player);
+            return { player, inv };
+        }
+
+        function atTick(tick: number, run: () => void): void {
+            system.currentTick = tick;
+            try {
+                run();
+            } finally {
+                system.currentTick = 0;
+                mockPlayers.length = 0;
+            }
+        }
+
+        it("leaves an idle player's inventory unread between safety sweeps", () => {
+            const { inv } = playerHolding("idle_builder", "minecraft:netherite_sword");
+
+            atTick(3, () => {
+                processPlayers();
+                assert.ok(inv.getItem(0), "a player who touched nothing must not have 36 slots re-read");
+            });
+        });
+
+        it("sweeps the next tick after the engine reports an inventory change", () => {
+            const { player, inv } = playerHolding("picked_up", "minecraft:netherite_sword");
+
+            atTick(3, () => {
+                eventBus.dispatch("playerInventoryItemChange", { player, slot: 0, itemStack: inv.getItem(0) });
+                processPlayers();
+                assert.equal(inv.getItem(0), undefined, "a reported change must be normalized on the next sweep");
+            });
+        });
+
+        it("still sweeps every player on the safety interval", () => {
+            const { inv } = playerHolding("safety_net", "minecraft:netherite_sword");
+
+            atTick(20, () => {
+                processPlayers();
+                assert.equal(inv.getItem(0), undefined, "the safety sweep must catch what the event missed");
+            });
         });
     });
 });

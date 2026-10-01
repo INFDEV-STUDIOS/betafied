@@ -4,7 +4,7 @@
         "description": {
             "identifier": "bh:wooden_slab"
         },
-        "tags": ["beta_crafting", "crafting_table"],
+        "tags": ["beta_crafting"],
         "pattern": ["###"],
         "key": {
             "#": {

@@ -76,6 +76,10 @@
     "$text_box_name": "#message_text_box",
     "$text_edit_box_content_binding_name": "#message_text_box_content",
     "always_listening": true,
+    // Vanilla chat.text_edit_box marks the chat box as the default focused input; without it the
+    // ported screen opens with focus unassigned, which leaves touch-input platforms needing a tap.
+    "default_focus_precedence": 1,
+    "$focus_id": "text_edit_box_focus_id",
     "max_length": 20000,
     "$text_background_locked|default": "$text_background_default",
     "$text_background_locked": "$text_background_default",

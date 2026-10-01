@@ -1,8 +1,0 @@
-{
-  "format_version": "1.16.0",
-  "minecraft:structure_set": {
-    "description": { "identifier": "minecraft:swamp_hut" },
-    "structures": [],
-    "placement": { "type": "random_spread", "spacing": 1000000, "separation": 999999, "salt": 123456 }
-  }
-}

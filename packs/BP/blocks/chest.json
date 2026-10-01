@@ -5,6 +5,12 @@
             "identifier": "bh:chest",
             "menu_category": {
                 "category": "items"
+            },
+            "traits": {
+                "minecraft:placement_direction": {
+                    "enabled_states": ["minecraft:cardinal_direction"],
+                    "y_rotation_offset": 180.0
+                }
             }
         },
         "components": {
@@ -24,8 +30,20 @@
                     "texture": "bh_chest_top",
                     "render_method": "opaque"
                 },
+                "north": {
+                    "texture": "bh_chest_side",
+                    "render_method": "opaque"
+                },
                 "south": {
                     "texture": "bh_chest_front",
+                    "render_method": "opaque"
+                },
+                "east": {
+                    "texture": "bh_chest_side",
+                    "render_method": "opaque"
+                },
+                "west": {
+                    "texture": "bh_chest_side",
                     "render_method": "opaque"
                 }
             },
@@ -57,6 +75,113 @@
             },
             "minecraft:display_name": "Chest",
             "minecraft:tags": ["wood", "minecraft:is_axe_item_destructible"]
-        }
+        },
+        "permutations": [
+            {
+                "condition": "q.block_state('minecraft:cardinal_direction') == 'north'",
+                "components": {
+                    "minecraft:material_instances": {
+                        "*": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "up": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "down": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "north": {
+                            "texture": "bh_chest_front",
+                            "render_method": "opaque"
+                        },
+                        "south": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "east": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "west": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        }
+                    }
+                }
+            },
+            {
+                "condition": "q.block_state('minecraft:cardinal_direction') == 'east'",
+                "components": {
+                    "minecraft:material_instances": {
+                        "*": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "up": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "down": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "north": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "south": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "east": {
+                            "texture": "bh_chest_front",
+                            "render_method": "opaque"
+                        },
+                        "west": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        }
+                    }
+                }
+            },
+            {
+                "condition": "q.block_state('minecraft:cardinal_direction') == 'west'",
+                "components": {
+                    "minecraft:material_instances": {
+                        "*": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "up": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "down": {
+                            "texture": "bh_chest_top",
+                            "render_method": "opaque"
+                        },
+                        "north": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "south": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "east": {
+                            "texture": "bh_chest_side",
+                            "render_method": "opaque"
+                        },
+                        "west": {
+                            "texture": "bh_chest_front",
+                            "render_method": "opaque"
+                        }
+                    }
+                }
+            }
+        ]
     }
 }

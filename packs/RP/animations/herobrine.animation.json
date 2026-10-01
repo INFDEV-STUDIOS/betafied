@@ -1,0 +1,81 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.herobrine.stand": {
+      "loop": true,
+      "bones": {
+        "body": {
+          "rotation": [
+            0,
+            -30,
+            0
+          ]
+        },
+        "head": {
+          "rotation": [
+            0,
+            30,
+            0
+          ]
+        }
+      }
+    },
+    "animation.herobrine.sneak": {
+      "loop": true,
+      "bones": {
+        "body": {
+          "rotation": [
+            29,
+            0,
+            0
+          ],
+          "position": [
+            0,
+            -2,
+            0
+          ]
+        },
+        "head": {
+          "rotation": [
+            -33,
+            0,
+            0
+          ],
+          "position": [
+            0,
+            -1,
+            0
+          ]
+        },
+        "leftarm": {
+          "rotation": [
+            -5.7,
+            0,
+            0
+          ]
+        },
+        "leftleg": {
+          "rotation": [
+            -28,
+            -0.1,
+            -0.1
+          ]
+        },
+        "rightarm": {
+          "rotation": [
+            -5.7,
+            0,
+            0
+          ]
+        },
+        "rightleg": {
+          "rotation": [
+            -28,
+            0.1,
+            0.1
+          ]
+        }
+      }
+    }
+  }
+}

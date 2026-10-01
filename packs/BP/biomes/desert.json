@@ -1,5 +1,5 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:desert"
@@ -7,12 +7,10 @@
     "components": {
       "minecraft:climate": {
         "temperature": 2,
-        "downfall": 0
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          1,
-          1.6
+        "downfall": 0,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,19 +24,11 @@
           "sea_floor_material": "minecraft:sand"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "warm",
-            10
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "desert",
+          "overworld",
           "monster",
-          "overworld"
+          "desert"
         ]
       }
     }

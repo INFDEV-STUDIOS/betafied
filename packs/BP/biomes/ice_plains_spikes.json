@@ -1,18 +1,16 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:ice_plains_spikes"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0,
-        "downfall": 0.5
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          1,
-          1.6
+        "temperature": 0.8,
+        "downfall": 0.4,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,22 +24,16 @@
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "cold",
-            10
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "frozen",
-          "ice_plains",
+          "overworld",
           "monster",
-          "mutated",
-          "overworld"
+          "animal",
+          "plains"
         ]
+      },
+      "minecraft:creature_spawn_probability": {
+        "probability": 0.05
       }
     }
   }

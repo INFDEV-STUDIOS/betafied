@@ -14,7 +14,7 @@
             "water_surface_color": "#FFFFFF"
         },
         "basalt_deltas": {
-            "fog_identifier": "classic_water:default_fog",
+            "fog_identifier": "mgg:fog_hell",
             "water_surface_color": "#FFFFFF"
         },
         "beach": {
@@ -26,6 +26,14 @@
             "water_surface_color": "#FFFFFF"
         },
         "birch_forest_hills": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "birch_forest_hills_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "birch_forest_mutated": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -54,6 +62,10 @@
             "water_surface_color": "#FFFFFF"
         },
         "crimson_forest": {
+            "fog_identifier": "mgg:fog_hell",
+            "water_surface_color": "#FFFFFF"
+        },
+        "dappled_forest": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -86,6 +98,10 @@
             "water_surface_color": "#FFFFFF"
         },
         "desert_hills": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "desert_mutated": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -142,7 +158,7 @@
             "water_surface_color": "#FFFFFF"
         },
         "hell": {
-            "fog_identifier": "classic_water:default_fog",
+            "fog_identifier": "mgg:fog_hell",
             "water_surface_color": "#FFFFFF"
         },
         "ice_mountains": {
@@ -169,11 +185,19 @@
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+        "jungle_edge_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
         "jungle_hills": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
         "jungle_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "legacy_frozen_ocean": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -230,7 +254,15 @@
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+        "mesa_plateau_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
         "mesa_plateau_stone": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "mesa_plateau_stone_mutated": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -242,11 +274,24 @@
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+
         "ocean": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+        "pale_garden": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
         "plains": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "redwood_taiga_hills_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "redwood_taiga_mutated": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -255,6 +300,10 @@
             "water_surface_color": "#FFFFFF"
         },
         "roofed_forest": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "roofed_forest_mutated": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
@@ -270,12 +319,16 @@
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+        "savanna_plateau_mutated": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
         "snowy_slopes": {
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
         "soulsand_valley": {
-            "fog_identifier": "classic_water:default_fog",
+            "fog_identifier": "mgg:fog_hell",
             "water_surface_color": "#FFFFFF"
         },
         "stone_beach": {
@@ -286,8 +339,17 @@
             "fog_identifier": "classic_water:default_fog",
             "water_surface_color": "#FFFFFF"
         },
+        "sulfur_caves": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
         "sunflower_plains": {
             "fog_identifier": "classic_water:default_fog",
+            "water_surface_color": "#FFFFFF"
+        },
+        "swamp": {
+            "fog_identifier": "classic_water:default_fog",
+            "water_surface_transparency": 0.60,
             "water_surface_color": "#FFFFFF"
         },
         "swampland": {
@@ -321,7 +383,7 @@
             "water_surface_color": "#FFFFFF"
         },
         "warped_forest": {
-            "fog_identifier": "classic_water:default_fog",
+            "fog_identifier": "mgg:fog_hell",
             "water_surface_color": "#FFFFFF"
         }
     }

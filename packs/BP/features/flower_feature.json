@@ -1,17 +1,18 @@
 {
-  "format_version": "1.13.0",
-  "minecraft:ore_feature": {
+  "format_version": "1.21.40",
+  "minecraft:weighted_random_feature": {
     "description": {
       "identifier": "minecraft:flower_feature"
     },
-    "count": 1,
-    "replace_rules": [
-      {
-        "places_block": "minecraft:air",
-        "may_replace": [
-          "minecraft:structure_void"
-        ]
-      }
+    "features": [
+      [
+        "minecraft:red_flower_feature",
+        1
+      ],
+      [
+        "minecraft:yellow_flower_feature",
+        1
+      ]
     ]
   }
 }

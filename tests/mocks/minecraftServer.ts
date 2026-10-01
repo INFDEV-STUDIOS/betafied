@@ -8,8 +8,10 @@ export const scheduledIntervals: { id: number; callback: Function; interval: num
 export const scheduledTimeouts: { id: number; callback: Function; timeout: number }[] = [];
 export const activeJobs: Generator<void, void, unknown>[] = [];
 export const mockPlayers: any[] = [];
+export const mockEntities = new Map<string, any>();
+export const mockDynamicProperties = new Map<string, any>();
 
-let nextRunId = 1;
+export let nextRunId = 1;
 
 export function resetMocks(): void {
     registeredBeforeEvents.clear();
@@ -18,6 +20,8 @@ export function resetMocks(): void {
     scheduledTimeouts.length = 0;
     activeJobs.length = 0;
     mockPlayers.length = 0;
+    mockEntities.clear();
+    mockDynamicProperties.clear();
     for (const dim of dimensions.values()) {
         dim.blocks.clear();
     }
@@ -136,7 +140,34 @@ export class MockDimension {
     }
 
     getEntities(_query?: any) {
-        return [];
+        return [...mockEntities.values()].filter((entity) => entity.dimension?.id === this.id);
+    }
+
+    getPlayers(query?: { location?: { x: number; y: number; z: number }; maxDistance?: number }) {
+        return mockPlayers.filter((player) => {
+            if (player.dimension?.id !== this.id) return false;
+            if (!query?.location || query.maxDistance === undefined) return true;
+            const distance = Math.hypot(
+                player.location.x - query.location.x,
+                player.location.z - query.location.z
+            );
+            return distance <= query.maxDistance;
+        });
+    }
+
+    spawnEntity(typeId: string, location: { x: number; y: number; z: number }) {
+        const entity = new Entity();
+        entity.id = `mock_entity_${nextRunId++}`;
+        entity.typeId = typeId;
+        entity.location = { ...location };
+        entity.dimension = this;
+        mockEntities.set(entity.id, entity);
+
+        for (const callback of registeredAfterEvents.get("entitySpawn") ?? []) {
+            callback({ entity });
+        }
+
+        return entity;
     }
 
     spawnItem(_itemStack: ItemStack, _location: { x: number; y: number; z: number }) {
@@ -170,6 +201,19 @@ export const world = {
     getPlayers() {
         return [...mockPlayers];
     },
+    getEntity(id: string) {
+        return mockEntities.get(id);
+    },
+    getDynamicProperty(identifier: string) {
+        return mockDynamicProperties.get(identifier);
+    },
+    setDynamicProperty(identifier: string, value?: any) {
+        if (value === undefined) {
+            mockDynamicProperties.delete(identifier);
+        } else {
+            mockDynamicProperties.set(identifier, value);
+        }
+    },
     getDimension(dimensionId: string) {
         const dim = dimensions.get(dimensionId);
         if (!dim) {
@@ -182,6 +226,7 @@ export const world = {
     beforeEvents: {
         playerInteractWithBlock: createEventSignal(registeredBeforeEvents, "playerInteractWithBlock"),
         playerInteractWithEntity: createEventSignal(registeredBeforeEvents, "playerInteractWithEntity"),
+        playerBreakBlock: createEventSignal(registeredBeforeEvents, "playerBreakBlock"),
         itemUse: createEventSignal(registeredBeforeEvents, "itemUse"),
         chatSend: createEventSignal(registeredBeforeEvents, "chatSend")
     },
@@ -204,7 +249,8 @@ export const world = {
         itemReleaseUse: createEventSignal(registeredAfterEvents, "itemReleaseUse"),
         chatSend: createEventSignal(registeredAfterEvents, "chatSend"),
         worldInitialize: createEventSignal(registeredAfterEvents, "worldInitialize"),
-        playerGameModeChange: createEventSignal(registeredAfterEvents, "playerGameModeChange")
+        playerGameModeChange: createEventSignal(registeredAfterEvents, "playerGameModeChange"),
+        playerInventoryItemChange: createEventSignal(registeredAfterEvents, "playerInventoryItemChange")
     }
 };
 
@@ -213,7 +259,9 @@ export const system = {
     scheduledTimeouts,
     scheduledIntervals,
     activeJobs,
-    beforeEvents: {},
+    beforeEvents: {
+        startup: createEventSignal(registeredBeforeEvents, "startup")
+    },
     afterEvents: {
         scriptEventReceive: createEventSignal(registeredAfterEvents, "scriptEventReceive")
     },
@@ -261,6 +309,19 @@ export const EquipmentSlot = Object.freeze({
     Feet: "Feet",
     Mainhand: "Mainhand",
     Offhand: "Offhand"
+});
+
+export const CommandPermissionLevel = Object.freeze({
+    Any: 0,
+    GameDirectors: 1,
+    Admin: 2,
+    Host: 3,
+    Owner: 4
+});
+
+export const CustomCommandStatus = Object.freeze({
+    Success: 0,
+    Failure: 1
 });
 
 export const GameMode = Object.freeze({
@@ -327,6 +388,30 @@ export class Entity {
         this.isValid = false;
         this.isRemoved = true;
     }
+
+    nameTag: string = "";
+    rotation: { x: number; y: number } = { x: 0, y: 0 };
+    public animationsPlayed: string[] = [];
+
+    getHeadLocation(): { x: number; y: number; z: number } {
+        return { x: this.location.x, y: this.location.y + 1.62, z: this.location.z };
+    }
+
+    getViewDirection(): { x: number; y: number; z: number } {
+        return { x: 0, y: 0, z: 1 };
+    }
+
+    setRotation(rotation: { x: number; y: number }): void {
+        this.rotation = { ...rotation };
+    }
+
+    teleport(location: { x: number; y: number; z: number }): void {
+        this.location = { ...location };
+    }
+
+    playAnimation(animationName: string): void {
+        this.animationsPlayed.push(animationName);
+    }
 }
 
 export class Player extends Entity {
@@ -352,6 +437,13 @@ export class Player extends Entity {
 
     public animationsPlayed: { animationName: string; options?: any }[] = [];
     public soundsPlayed: { soundId: string; options?: any }[] = [];
+
+    public onScreenDisplay = {
+        titles: [] as string[],
+        setTitle(text: string) {
+            this.titles.push(text);
+        }
+    };
 
     playAnimation(animationName: string, options?: any): void {
         this.animationsPlayed.push({ animationName, options });
@@ -419,6 +511,7 @@ export class Block {}
 export class Dimension {}
 export class Vector3 {}
 export class PlayerInteractWithBlockBeforeEvent {}
+export class PlayerBreakBlockBeforeEvent {}
 export class PlayerPlaceBlockAfterEvent {}
 export class ItemComponentUseOnEvent {}
 export class EntityHealthComponent {}

@@ -29,7 +29,8 @@ function fireArrow(player: Player): boolean {
 
     if (!isCreative) {
         let arrowSlot = -1;
-        for (let i = 0; i < inv.size; i++) {
+        const size = inv.size;
+        for (let i = 0; i < size; i++) {
             const slotItem = inv.getItem(i);
             if (slotItem?.typeId === "minecraft:arrow") {
                 arrowSlot = i;

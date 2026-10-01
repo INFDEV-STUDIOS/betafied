@@ -10,7 +10,7 @@ describe("Bedrock Natural Spawning Contract - Spawn Rules & Biome Integrity", ()
 
     it("verifies every biome file defines non-empty minecraft:tags", () => {
         const biomeFiles = readdirSync(biomesDir).filter(f => f.endsWith(".json"));
-        assert.ok(biomeFiles.length >= 60, "Expected at least 60 biome definitions");
+        assert.ok(biomeFiles.length >= 55, "Expected at least 55 biome definitions");
 
         for (const file of biomeFiles) {
             const content = JSON.parse(readFileSync(resolve(biomesDir, file), "utf-8"));

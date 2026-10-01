@@ -49,6 +49,39 @@ describe("Classic Block Contract - Beta 1.7.3 chest", () => {
         );
     });
 
+    it("turns its latch toward whoever placed it", () => {
+        // The trait records the player's facing, and rotating it half a turn leaves the latch on the
+        // side the player is standing on, which is the face a chest shows the person who placed it.
+        assert.deepEqual(chest.description.traits["minecraft:placement_direction"], {
+            enabled_states: ["minecraft:cardinal_direction"],
+            y_rotation_offset: 180
+        });
+
+        const frontFaces = (instances: any): string[] =>
+            Object.entries(instances)
+                .filter(([, instance]: [string, any]) => instance.texture === "bh_chest_front")
+                .map(([face]) => face);
+
+        // South is the base permutation, so it is also the face the inventory icon shows.
+        assert.deepEqual(frontFaces(chest.components["minecraft:material_instances"]), ["south"]);
+
+        for (const permutation of chest.permutations) {
+            const direction = permutation.condition.match(/== '(\w+)'/)?.[1];
+            assert.ok(direction, `unreadable rotation condition: ${permutation.condition}`);
+            assert.deepEqual(
+                frontFaces(permutation.components["minecraft:material_instances"]),
+                [direction],
+                `the ${direction} state must put the latch on its own face`
+            );
+        }
+
+        assert.deepEqual(
+            chest.permutations.map((p: any) => p.condition.match(/== '(\w+)'/)?.[1]).sort(),
+            ["east", "north", "west"],
+            "the base components already draw the south-facing latch"
+        );
+    });
+
     it("registers every chest texture in the terrain atlas", () => {
         const atlas = readJson(resolve(root, "packs/RP/textures/terrain_texture.json")).texture_data;
 

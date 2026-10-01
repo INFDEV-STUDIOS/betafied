@@ -1,18 +1,16 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:meadow"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0.5,
-        "downfall": 0.5
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          1,
-          1.6
+        "temperature": 0.7,
+        "downfall": 0.8,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,22 +24,16 @@
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "medium",
-            5
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "bee_habitat",
-          "meadow",
+          "overworld",
           "monster",
-          "mountains",
-          "overworld"
+          "animal",
+          "forest"
         ]
+      },
+      "minecraft:creature_spawn_probability": {
+        "probability": 0.05
       }
     }
   }

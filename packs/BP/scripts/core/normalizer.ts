@@ -62,6 +62,19 @@ function matchCopper(bareId: string): NormalizationResult | null {
     return { action: "convert", targetId: "minecraft:cobblestone" };
 }
 
+const NETHER_ORES: Readonly<Record<string, string>> = Object.freeze({
+    "quartz_ore": "minecraft:netherrack",
+    "nether_gold_ore": "minecraft:netherrack",
+    "ancient_debris": "minecraft:netherrack"
+});
+
+function matchNetherOre(bareId: string): NormalizationResult | null {
+    // Beta 1.7.3's Nether held no ores, but vanilla still hangs quartz, gold and debris off the
+    // `nether` biome tag our single Nether biome carries, so they dissolve back into netherrack.
+    const target = NETHER_ORES[bareId];
+    return target === undefined ? null : { action: "convert", targetId: target };
+}
+
 const STONE_VARIANTS = new Set([
     "andesite", "granite", "diorite", "tuff", "calcite",
     "dripstone_block", "deepslate", "smooth_basalt"
@@ -73,17 +86,6 @@ function matchStone(bareId: string): NormalizationResult | null {
     }
     if (STONE_VARIANTS.has(bareId) || bareId.endsWith("_deepslate_ore")) {
         return { action: "convert", targetId: "minecraft:stone" };
-    }
-    return null;
-}
-
-const NETHER_KEYWORDS = ["nylium", "basalt", "blackstone", "wart_block", "shroomlight", "ancient_debris", "nether_gold_ore", "quartz_ore"];
-
-function matchNether(bareId: string): NormalizationResult | null {
-    if (bareId === "crying_obsidian") return { action: "convert", targetId: "minecraft:obsidian" };
-    if (bareId === "soul_soil") return { action: "convert", targetId: "minecraft:soul_sand" };
-    if (bareId === "magma_block" || NETHER_KEYWORDS.some(kw => bareId.includes(kw))) {
-        return { action: "convert", targetId: "minecraft:netherrack" };
     }
     return null;
 }
@@ -117,8 +119,14 @@ const SIMPLE_WOOD_ITEMS: Readonly<Record<string, string>> = Object.freeze({
     _sapling: "minecraft:oak_sapling"
 });
 
+// Hoisted: `matchWoodItem` runs once per inventory slot per tick, and rebuilding this list with
+// Object.entries on every call was the allocation the inventory sweep spent its time on.
+const SIMPLE_WOOD_ENTRIES: readonly (readonly [string, string])[] = Object.freeze(
+    Object.entries(SIMPLE_WOOD_ITEMS)
+);
+
 function matchWoodItem(bareId: string): NormalizationResult | null {
-    for (const [suffix, target] of Object.entries(SIMPLE_WOOD_ITEMS)) {
+    for (const [suffix, target] of SIMPLE_WOOD_ENTRIES) {
         if (bareId.endsWith(suffix)) {
             return { action: "convert", targetId: target };
         }
@@ -139,7 +147,7 @@ export function normalizeItem(itemId: string): NormalizationResult {
 
     return matchCopper(bareId)
         ?? matchStone(bareId)
-        ?? matchNether(bareId)
+        ?? matchNetherOre(bareId)
         ?? matchWoodBuilding(bareId)
         ?? matchWoodItem(bareId)
         ?? { action: "remove" };

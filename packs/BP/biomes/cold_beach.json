@@ -1,45 +1,34 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:cold_beach"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0.05,
-        "downfall": 0.3
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
+        "temperature": 0.3,
+        "downfall": 0.4,
+        "snow_accumulation": [
           0,
-          0.025
+          0
         ]
       },
       "minecraft:surface_builder": {
         "builder": {
           "type": "minecraft:overworld",
           "sea_floor_depth": 7,
-          "top_material": "minecraft:sand",
-          "mid_material": "minecraft:sand",
+          "top_material": "minecraft:gravel",
+          "mid_material": "minecraft:gravel",
           "foundation_material": "minecraft:stone",
           "sea_material": "minecraft:water",
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "cold",
-            2
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "beach",
-          "cold",
+          "overworld",
           "monster",
-          "overworld"
+          "beach"
         ]
       }
     }

@@ -4,12 +4,15 @@ build/
 *.tsbuildinfo
 .DS_Store
 .env
+.env.*
+!.env.example
 *.mcaddon
 *.mcpack
 *.mctemplate
 
 # AI & Agent configurations, prompts, and planning artifacts
-AGENTS.md
+# AGENTS.md is deliberately absent: agent tooling hides files matched here, so it is
+# ignored per-clone via .git/info/exclude instead. Re-apply it after a fresh clone.
 CLAUDE.md
 GEMINI.md
 .agents/
@@ -21,3 +24,6 @@ scorecard.png
 
 # Local offline documentation corpus (scripts/fetch-reference-docs.sh)
 reference-docs/
+
+# Working copies of server worlds pulled down by scripts/wipeNether.mjs
+.betafied-wipe/

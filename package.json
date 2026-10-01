@@ -1,6 +1,6 @@
 {
   "name": "betafied",
-  "version": "4.3.0",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,20 +10,24 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "build": "scripts/regolith.sh run",
     "push": "node scripts/push.mjs",
+    "wipe-nether": "node scripts/wipeNether.mjs",
     "watch": "node scripts/watch.mjs",
     "watch:regolith": "scripts/regolith.sh watch",
     "install-filters": "scripts/regolith.sh install-all",
-    "docs:fetch": "bash scripts/fetch-reference-docs.sh"
+    "docs:fetch": "bash scripts/fetch-reference-docs.sh",
+    "generate:biomes": "node scripts/generate-biomes.mjs"
   },
   "devDependencies": {
+    "@8crafter/leveldb-zlib": "^1.6.0",
     "@eslint/js": "^10.0.0",
     "@minecraft/server": "2.11.0-beta.1.26.51-stable",
     "@types/node": "^26.6.2",
     "@types/ssh2-sftp-client": "^9.0.6",
     "eslint": "^10.0.0",
+    "eslint-plugin-minecraft-linting": "^2.0.12",
+    "mcbe-leveldb": "^1.23.0",
     "prismarine-nbt": "^2.8.0",
     "ssh2-sftp-client": "^12.1.1",
-    "eslint-plugin-minecraft-linting": "^2.0.12",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.0.0"
   },

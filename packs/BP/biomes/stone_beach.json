@@ -1,18 +1,16 @@
 {
-  "format_version": "1.21.110",
+  "format_version": "1.26.0",
   "minecraft:biome": {
     "description": {
       "identifier": "minecraft:stone_beach"
     },
     "components": {
       "minecraft:climate": {
-        "temperature": 0.2,
-        "downfall": 0.3
-      },
-      "minecraft:overworld_height": {
-        "noise_params": [
-          0.1,
-          0.8
+        "temperature": 0.3,
+        "downfall": 0.4,
+        "snow_accumulation": [
+          0,
+          0
         ]
       },
       "minecraft:surface_builder": {
@@ -26,20 +24,11 @@
           "sea_floor_material": "minecraft:gravel"
         }
       },
-      "minecraft:overworld_generation_rules": {
-        "generate_for_climates": [
-          [
-            "medium",
-            1
-          ]
-        ]
-      },
       "minecraft:tags": {
         "tags": [
-          "beach",
-          "monster",
           "overworld",
-          "stone"
+          "monster",
+          "beach"
         ]
       }
     }

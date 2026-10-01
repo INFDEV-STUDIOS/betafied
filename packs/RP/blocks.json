@@ -297,9 +297,8 @@
         }
     },
     "beacon": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "obsidian"
     },
     "bed": {
         "isotropic": false,
@@ -808,9 +807,8 @@
         "textures": "calcite"
     },
     "calibrated_sculk_sensor": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "stone"
     },
     "camera": {
         "isotropic": false,
@@ -1164,9 +1162,8 @@
         "textures": "concretePowder"
     },
     "conduit": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "stone"
+        "sound": "stone",
+        "textures": "stone"
     },
     "copper_block": {
         "isotropic": false,
@@ -2022,6 +2019,9 @@
         "carried_textures": "fire_coral",
         "sound": "stone",
         "textures": "fire_coral"
+    },
+    "firefly_bush": {
+        "blockshape": "invisible"
     },
     "fletching_table": {
         "isotropic": false,
@@ -3045,9 +3045,9 @@
         "textures": "wool_colored_magenta"
     },
     "magma": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "stone"
+        "isotropic": false,
+        "sound": "gravel",
+        "textures": "gravel"
     },
     "mangrove_button": {
         "isotropic": false,
@@ -3789,9 +3789,8 @@
         }
     },
     "prismarine": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "stone"
+        "sound": "stone",
+        "textures": "stone"
     },
     "prismarine_bricks_stairs": {
         "isotropic": false,
@@ -4135,9 +4134,8 @@
         "textures": "missing_tile"
     },
     "respawn_anchor": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "obsidian"
     },
     "sand": {
         "brightness_gamma": 0.550,
@@ -4184,24 +4182,20 @@
         }
     },
     "sculk": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "stone"
     },
     "sculk_catalyst": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "stone"
     },
     "sculk_sensor": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "stone"
     },
     "sculk_shrieker": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "stone",
+        "textures": "stone"
     },
     "sculk_vein": {
         "isotropic": false,
@@ -4209,9 +4203,8 @@
         "textures": "sculk_vein"
     },
     "seaLantern": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "glass"
+        "sound": "glass",
+        "textures": "glowstone"
     },
     "sea_pickle": {
         "carried_textures": "sea_pickle_carried",
@@ -4576,9 +4569,8 @@
         "textures": "stonebrick"
     },
     "stonecutter": {
-        "blockshape": "invisible",
-        "textures": "invisible",
-        "sound": "stone"
+        "sound": "stone",
+        "textures": "stone"
     },
     "stonecutter_block": {
         "isotropic": false,

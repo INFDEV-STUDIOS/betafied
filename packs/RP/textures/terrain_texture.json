@@ -285,8 +285,15 @@
         "flowering_azalea_leaf_litter": { "textures": "textures/blocks/invisible" },
         
         "glass_blue": { "textures": "textures/blocks/glass_blue" },
-        
-        "magma": { "textures": "textures/blocks/netherrack" },
+
+        "netherrack": { "textures": "textures/blocks/netherrack" },
+        "soul_sand": { "textures": "textures/blocks/soul_sand" },
+        "stone": { "textures": "textures/blocks/stone" },
+        "gravel": { "textures": "textures/blocks/gravel" },
+        "obsidian": { "textures": "textures/blocks/obsidian" },
+        "glowstone": { "textures": "textures/blocks/glowstone" },
+
+        "magma": { "textures": "textures/blocks/magma" },
         "crimson_nylium_side": { "textures": "textures/blocks/netherrack" },
         "crimson_nylium_top": { "textures": "textures/blocks/netherrack" },
         "warped_nylium_side": { "textures": "textures/blocks/netherrack" },

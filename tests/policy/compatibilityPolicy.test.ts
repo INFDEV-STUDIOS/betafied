@@ -74,13 +74,43 @@ describe("Compatibility Policy - Pure Unit Tests", () => {
             assert.equal(ITEM_CONVERSIONS["minecraft:raw_copper_block"], "minecraft:cobblestone");
         });
 
-        it("replaces modern deepslate and nether terrain blocks", () => {
+        it("replaces modern deepslate terrain blocks", () => {
             const bulkMap = new Map(BLOCK_BULK_REPLACEMENTS);
             assert.equal(bulkMap.get("minecraft:deepslate"), "minecraft:stone");
             assert.equal(bulkMap.get("minecraft:cobbled_deepslate"), "minecraft:cobblestone");
-            assert.equal(bulkMap.get("minecraft:blackstone"), "minecraft:netherrack");
-            assert.equal(bulkMap.get("minecraft:basalt"), "minecraft:netherrack");
+        });
+
+        it("dissolves the Nether's ores but lets the biome own its terrain", () => {
+            const bulkMap = new Map(BLOCK_BULK_REPLACEMENTS);
+            assert.equal(bulkMap.get("minecraft:quartz_ore"), "minecraft:netherrack");
+            assert.equal(bulkMap.get("minecraft:nether_gold_ore"), "minecraft:netherrack");
             assert.equal(bulkMap.get("minecraft:ancient_debris"), "minecraft:netherrack");
+
+            // Modern Nether terrain is never repainted block-by-block — the single biome owns it.
+            assert.equal(bulkMap.get("minecraft:blackstone"), undefined);
+            assert.equal(bulkMap.get("minecraft:basalt"), undefined);
+            assert.equal(ITEM_CONVERSIONS["minecraft:blackstone"], undefined);
+            assert.equal(ITEM_CONVERSIONS["minecraft:magma_block"], undefined);
+        });
+
+        it("turns the Nether's magma shores into Beta gravel beaches", () => {
+            const bulkMap = new Map(BLOCK_BULK_REPLACEMENTS);
+            assert.equal(bulkMap.get("minecraft:magma"), "minecraft:gravel");
+        });
+
+        it("gives every full-cube modern block a real Beta stand-in", () => {
+            // These are the blocks the resource pack stopped masking: the fine pass is what turns
+            // them into a Beta material, so the table has to name one for each.
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:sculk"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:sculk_catalyst"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:sculk_sensor"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:sculk_shrieker"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:calibrated_sculk_sensor"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:beacon"], "minecraft:obsidian");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:respawn_anchor"], "minecraft:obsidian");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:conduit"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:stonecutter_block"], "minecraft:stone");
+            assert.equal(BLOCK_FINE_REPLACEMENTS["minecraft:sea_lantern"], "minecraft:glowstone");
         });
 
         it("fine replacements clear modern vegetation and non-beta blocks", () => {

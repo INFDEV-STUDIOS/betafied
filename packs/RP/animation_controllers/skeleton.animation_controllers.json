@@ -13,7 +13,7 @@
                 },
                 "attack": {
                     "animations": [
-                        "default"
+                        "skeleton_attack"
                     ],
                     "transitions": [
                         {
