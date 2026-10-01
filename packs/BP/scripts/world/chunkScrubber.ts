@@ -53,6 +53,30 @@ const BETA_FLOOR_CEILING = BETA_FLOOR_Y + BETA_FLOOR_LAYERS;
 const BEDROCK_FILTER: BlockFilter = Object.freeze({ includeTypes: ["minecraft:bedrock"] });
 
 /**
+ * Matches a log laid on its side.
+ *
+ * Beta 1.7.3 logs only ever stood upright, so the horizontal logs modern world generation scatters
+ * as "fallen trees" have no Beta counterpart and are cleared to air. Keying the filter on the
+ * `pillar_axis` permutation keeps this to one native scan per band and leaves a vertical log - which
+ * the axis alone cannot distinguish from terrain - alone.
+ */
+function buildHorizontalLogFilter(): BlockFilter {
+    const includePermutations: BlockPermutation[] = [];
+    for (const type of ["minecraft:oak_log", "minecraft:birch_log", "minecraft:spruce_log"]) {
+        for (const axis of ["x", "z"]) {
+            try {
+                includePermutations.push(BlockPermutation.resolve(type, { pillar_axis: axis }));
+            } catch {
+                // The log type or its axis state is absent in this engine build.
+            }
+        }
+    }
+    return Object.freeze({ includePermutations });
+}
+
+const HORIZONTAL_LOG_FILTER: BlockFilter = buildHorizontalLogFilter();
+
+/**
  * Types the scrubber is allowed to walk past.
  *
  * This is the negative filter for every volume query below: the Beta registry plus the engine's air
@@ -73,7 +97,31 @@ const UNTOUCHED_TYPES: string[] = [
 
 const UNTOUCHED_FILTER: BlockFilter = Object.freeze({ excludeTypes: UNTOUCHED_TYPES });
 
-const BULK_TARGET_TYPES: string[] = BLOCK_BULK_REPLACEMENTS.map(([target]) => target);
+/**
+ * Every type the scrubber knows how to rewrite, in one group-tested probe list.
+ *
+ * The bulk and fine tables used to be reached by different passes: bulk targets by `containsBlock`
+ * probes and filtered fills, fine targets only by the fine pass's reverse-allowlist volume query.
+ * That query does not reliably hand these blocks back, so a chunk could clear a full sweep with its
+ * plants, leaf litter and other fine-only types untouched. Folding both tables into the probe list
+ * turns every known target into a filtered native fill, which is the path that actually reaches
+ * them. On a target named in both tables the first entry wins, so the deliberate fine-table
+ * backstops do not emit a duplicate fill.
+ */
+function buildScrubTargets(): readonly (readonly [string, string])[] {
+    const seen = new Set<string>();
+    const targets: [string, string][] = [];
+    for (const [target, replacement] of [...BLOCK_BULK_REPLACEMENTS, ...Object.entries(BLOCK_FINE_REPLACEMENTS)]) {
+        if (seen.has(target)) continue;
+        seen.add(target);
+        targets.push([target, replacement]);
+    }
+    return targets;
+}
+
+const SCRUB_TARGETS: readonly (readonly [string, string])[] = buildScrubTargets();
+
+const BULK_TARGET_TYPES: string[] = SCRUB_TARGETS.map(([target]) => target);
 
 // Presence is discovered by group-testing the table (see runBulkReplacements), so a filter spans a
 // contiguous slice rather than one type. Slices repeat every band of every chunk, so they are built
@@ -89,7 +137,7 @@ function bulkRangeFilter(lo: number, hi: number): BlockFilter {
     return filter;
 }
 
-const BULK_BY_TARGET = new Map(BLOCK_BULK_REPLACEMENTS);
+const BULK_BY_TARGET = new Map(SCRUB_TARGETS);
 
 function markScrubbed(key: string, tick: number): void {
     if (SCRUBBED_AT.size >= MAX_TRACKED_CHUNKS) {
@@ -227,6 +275,34 @@ export function repairFloorOverflow(dim: Dimension, cx: number, cz: number): voi
     }
 }
 
+/**
+ * Clears fallen logs (sideways logs) from one chunk.
+ *
+ * A permutation-filtered fill is the native way to express "these logs, this axis": the presence
+ * probe gates it, so a chunk with only upright logs pays one scan per band and no write.
+ */
+export function clearFallenLogs(dim: Dimension, cx: number, cz: number): void {
+    if (dim.id !== OVERWORLD_ID) return;
+
+    const permutations = HORIZONTAL_LOG_FILTER.includePermutations;
+    if (!permutations || permutations.length === 0) return;
+
+    const { max: yMax } = dim.heightRange;
+    const x1 = cx * CHUNK_SIZE;
+    const z1 = cz * CHUNK_SIZE;
+    const x2 = x1 + CHUNK_SIZE - 1;
+    const z2 = z1 + CHUNK_SIZE - 1;
+
+    for (let y = BETA_FLOOR_Y; y <= yMax; y += BAND_HEIGHT) {
+        const bandTop = Math.min(y + BAND_HEIGHT - 1, yMax);
+        const volume = new BlockVolume({ x: x1, y, z: z1 }, { x: x2, y: bandTop, z: z2 });
+
+        if (!containsBlocksIn(dim, volume, HORIZONTAL_LOG_FILTER)) continue;
+
+        fill(dim, x1, y, z1, x2, bandTop, z2, "minecraft:air", HORIZONTAL_LOG_FILTER);
+    }
+}
+
 const PERM_CACHE = new Map<string, BlockPermutation | null>();
 function getPermutation(typeId: string): BlockPermutation | null {
     if (PERM_CACHE.has(typeId)) return PERM_CACHE.get(typeId) ?? null;
@@ -269,6 +345,10 @@ function applyFineScrub(block: Block): void {
     const bulkTarget = BULK_BY_TARGET.get(typeId);
     if (bulkTarget !== undefined) {
         applyReplacement(block, bulkTarget);
+        // `planks` is the one target that is not final: the branch below retypes it to oak. Every
+        // other target the table maps a block to is already the Beta stand-in, so the sweep stops
+        // here rather than re-normalizing the id it just wrote.
+        if (bulkTarget !== "minecraft:planks") return;
         typeId = bulkTarget;
     }
 
@@ -346,7 +426,7 @@ function getMatchingBlocks(dimension: Dimension, volume: BlockVolume): BlockLoca
  */
 function runBulkReplacements(dimension: Dimension, volume: BlockVolume, cx: number, cz: number, bandBottom: number, bandTop: number): void {
     const present: number[] = [];
-    collectBulkTargets(dimension, volume, 0, BLOCK_BULK_REPLACEMENTS.length - 1, present);
+    collectBulkTargets(dimension, volume, 0, SCRUB_TARGETS.length - 1, present);
     if (present.length === 0) return;
 
     const x1 = cx * CHUNK_SIZE;
@@ -355,7 +435,7 @@ function runBulkReplacements(dimension: Dimension, volume: BlockVolume, cx: numb
     const z2 = z1 + CHUNK_SIZE - 1;
 
     for (const i of present) {
-        const [target, replacement] = BLOCK_BULK_REPLACEMENTS[i];
+        const [target, replacement] = SCRUB_TARGETS[i];
         fill(dimension, x1, bandBottom, z1, x2, bandTop, z2, replacement, { includeTypes: [target] });
     }
 }
@@ -442,6 +522,7 @@ export function* chunkScanJob(): Generator<void, void, unknown> {
             SCRUB_IN_FLIGHT.set(key, tick);
             solidifyBetaFloor(dimension, chunkX, chunkZ);
             repairFloorOverflow(dimension, chunkX, chunkZ);
+            clearFallenLogs(dimension, chunkX, chunkZ);
 
             const clean = yield* scrubFineDetails(dimension, chunkX, chunkZ);
             SCRUB_IN_FLIGHT.delete(key);

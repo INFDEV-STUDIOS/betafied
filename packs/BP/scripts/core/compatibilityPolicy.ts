@@ -396,6 +396,24 @@ export const BLOCK_FINE_REPLACEMENTS: Readonly<Record<string, string>> = {
     "minecraft:pitcher_crop": "minecraft:air",
     "minecraft:torchflower_crop": "minecraft:air",
     "minecraft:pink_petals": "minecraft:air",
+
+    // Modern flowers and tall plants Beta never had. They are listed here so the scrubber resolves
+    // them through its target table (see the combined probe list in chunkScrubber) instead of relying
+    // on the fine pass's reverse-allowlist volume query to hand each one back.
+    "minecraft:lilac": "minecraft:air",
+    "minecraft:peony": "minecraft:air",
+    "minecraft:rose_bush": "minecraft:air",
+    "minecraft:sunflower": "minecraft:air",
+    "minecraft:cornflower": "minecraft:air",
+    "minecraft:lily_of_the_valley": "minecraft:air",
+    "minecraft:azure_bluet": "minecraft:air",
+    "minecraft:oxeye_daisy": "minecraft:air",
+    "minecraft:allium": "minecraft:air",
+    "minecraft:blue_orchid": "minecraft:air",
+    "minecraft:pitcher_plant": "minecraft:air",
+    "minecraft:torchflower": "minecraft:air",
+    "minecraft:hanging_roots": "minecraft:air",
+
     "minecraft:leaf_litter": "minecraft:air",
     "minecraft:oak_leaf_litter": "minecraft:air",
     "minecraft:spruce_leaf_litter": "minecraft:air",

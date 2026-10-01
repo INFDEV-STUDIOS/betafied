@@ -1,0 +1,17 @@
+{
+  "format_version": "1.13.0",
+  "minecraft:ore_feature": {
+    "description": {
+      "identifier": "minecraft:optional_fallen_birch_tree_feature"
+    },
+    "count": 1,
+    "replace_rules": [
+      {
+        "places_block": "minecraft:air",
+        "may_replace": [
+          "minecraft:structure_void"
+        ]
+      }
+    ]
+  }
+}
