@@ -1,12 +1,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-    BETA_ENTITY_TYPES,
-    BETA_ITEM_IDS,
     BETA_BLOCK_IDS,
+    BETA_ENTITY_TYPES,
+    BETA_HOSTILE_TYPES,
+    BETA_ITEM_IDS,
+    BETA_PASSIVE_TYPES,
+    POST_BETA_WOOD_SPECIES,
+    TERRAIN_PLANK_SPECIES,
+    WOOL_BY_COLOR,
+    isBetaBlock,
     isBetaEntity,
     isBetaItem,
-    isBetaBlock,
     isModItem,
     isVanillaId
 } from "../../packs/BP/scripts/core/betaRegistry.js";
@@ -142,6 +147,35 @@ describe("Canonical Beta 1.7.3 Registry Policy", () => {
         it("allows Beta 1.7.3 maps despite the modern empty_map id split", () => {
             assert.ok(isBetaItem("minecraft:empty_map"));
             assert.ok(isBetaItem("minecraft:filled_map"));
+        });
+    });
+
+    describe("Derived-set invariants", () => {
+        it("builds the block allowlist from the single wool palette", () => {
+            // The palette drives both the shearing drop and the sword bonus; if it is ever unhooked
+            // from the allowlist, a coloured wool becomes an "unsupported" block overnight.
+            for (const wool of WOOL_BY_COLOR) {
+                assert.ok(BETA_BLOCK_IDS.has(wool), `palette wool ${wool} must be an authentic block`);
+            }
+        });
+
+        it("keeps every passive and hostile mob inside the entity allowlist", () => {
+            for (const id of [...BETA_PASSIVE_TYPES, ...BETA_HOSTILE_TYPES]) {
+                assert.ok(BETA_ENTITY_TYPES.has(id), `${id} must be an allowed Beta entity`);
+            }
+        });
+
+        it("keeps the terrain plank species inside the post-Beta wood set", () => {
+            for (const species of TERRAIN_PLANK_SPECIES) {
+                assert.ok(POST_BETA_WOOD_SPECIES.has(species), `${species} must be a post-Beta species`);
+            }
+        });
+
+        it("recognizes both fish ids the fishing tables can yield", () => {
+            // Beta's fishing drop reached the ground as `minecraft:fish` on this engine; the food
+            // table maps it, so the gatekeeper must not delete it first.
+            assert.ok(isBetaItem("minecraft:fish"));
+            assert.ok(isBetaItem("minecraft:cooked_fish"));
         });
     });
 

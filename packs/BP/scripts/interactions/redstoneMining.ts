@@ -2,19 +2,14 @@ import { world, Player, EquipmentSlot, EntityComponentTypes } from "@minecraft/s
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { runCatching } from "../core/errorReporter.js";
+import { BETA_PICKAXE_IDS } from "../core/betaRegistry.js";
 
 export const SLOW_BLOCKS = new Set([
     "minecraft:redstone_ore",
     "minecraft:lit_redstone_ore"
 ]);
 
-export const PICKAXES = new Set([
-    "minecraft:wooden_pickaxe",
-    "minecraft:stone_pickaxe",
-    "minecraft:iron_pickaxe",
-    "minecraft:golden_pickaxe",
-    "minecraft:diamond_pickaxe"
-]);
+export const PICKAXES: ReadonlySet<string> = BETA_PICKAXE_IDS;
 
 const CONFIG = Object.freeze({
     TICK_INTERVAL: 3,

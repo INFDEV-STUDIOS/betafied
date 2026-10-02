@@ -1,9 +1,10 @@
 import { ItemStack, EntityComponentTypes, EquipmentSlot } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
+import { BETA_PIGMAN_TYPES } from "../core/betaRegistry.js";
 
 eventBus.onEntitySpawn((event) => {
     const entity = event.entity;
-    if (entity?.typeId !== "minecraft:zombie_pigman") return;
+    if (!entity || !BETA_PIGMAN_TYPES.has(entity.typeId)) return;
 
     try {
         const equippable = entity.getComponent(EntityComponentTypes.Equippable);

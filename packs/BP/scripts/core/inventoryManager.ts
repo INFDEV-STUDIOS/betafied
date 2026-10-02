@@ -10,8 +10,9 @@ import {
 } from "@minecraft/server";
 import { isInventoryExempt } from "./permissions.js";
 import { reportError } from "./errorReporter.js";
-import { isBetaItem, isVanillaId } from "./betaRegistry.js";
-import { normalizeItem, resolvePlacerReplacement } from "./normalizer.js";
+import { BH_BOW_ID, isBetaItem, isVanillaId } from "./betaRegistry.js";
+import { ARMOR_SLOTS } from "./equipmentSlots.js";
+import { normalizeItem, resolvePlacerReplacement, FOOD_CONVERSIONS } from "./normalizer.js";
 import { tickManager } from "./tickManager.js";
 import { eventBus } from "./eventBus.js";
 
@@ -28,19 +29,6 @@ const CONFIG = Object.freeze({
     ENCHANT_MSG: "§c[Betafied] §7Enchantments removed! Beta 1.7.3 had no enchanting."
 });
 
-const FOOD_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze({
-    "minecraft:apple": "bh:apple",
-    "minecraft:bread": "bh:bread",
-    "minecraft:porkchop": "bh:porkchop",
-    "minecraft:cooked_porkchop": "bh:cooked_porkchop",
-    "minecraft:cod": "bh:cod",
-    "minecraft:cooked_cod": "bh:cooked_cod",
-    "minecraft:golden_apple": "bh:golden_apple",
-    "minecraft:cookie": "bh:cookie",
-    "minecraft:salmon": "bh:cod",
-    "minecraft:cooked_salmon": "bh:cooked_cod"
-});
-
 const UNSTACKABLE_UTILITIES: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:wooden_door",
     "minecraft:iron_door",
@@ -52,10 +40,7 @@ const msgCooldowns = new Map<string, number>();
 const previousExemptionState = new Map<string, boolean>();
 
 const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = Object.freeze([
-    EquipmentSlot.Head,
-    EquipmentSlot.Chest,
-    EquipmentSlot.Legs,
-    EquipmentSlot.Feet,
+    ...ARMOR_SLOTS,
     EquipmentSlot.Offhand
 ]);
 
@@ -181,7 +166,7 @@ export function evaluateItemAction(item: ItemStack): ItemNormalizationAction {
     }
 
     if (id === "minecraft:bow") {
-        const replacement = new ItemStack("bh:bow", item.amount);
+        const replacement = new ItemStack(BH_BOW_ID, item.amount);
         preserveDurability(item, replacement);
         return { type: "replace", item: replacement };
     }

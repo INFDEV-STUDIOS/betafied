@@ -1,0 +1,19 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "minecraft:swampland"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#78BF60"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#56AE38"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#7AA6FF"
+      }
+    }
+  }
+}

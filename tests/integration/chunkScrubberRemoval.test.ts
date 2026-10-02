@@ -149,9 +149,10 @@ describe("Chunk Scrubber - Inverse Allowlist Enforcement", () => {
         assert.deepEqual(stoneBricks.setTypeCalls, ["minecraft:air"], "all non-Beta blocks must be deleted");
     });
 
-    it("clears vines through the bulk path", () => {
+    it("clears vines and glow lichen through the bulk path", () => {
         const dim = scrubDimension(new Map<string, RecordedBlock>([
             ["3,70,2", recordingBlock("minecraft:vine")],
+            ["3,71,2", recordingBlock("minecraft:glow_lichen")],
             ["9,40,9", recordingBlock("minecraft:cave_vines")]
         ]));
 
@@ -159,6 +160,9 @@ describe("Chunk Scrubber - Inverse Allowlist Enforcement", () => {
 
         assert.deepEqual(bulkFillsFor(dim, "minecraft:vine"), [
             "fill 0 0 0 15 127 15 minecraft:air replace minecraft:vine"
+        ]);
+        assert.deepEqual(bulkFillsFor(dim, "minecraft:glow_lichen"), [
+            "fill 0 0 0 15 127 15 minecraft:air replace minecraft:glow_lichen"
         ]);
         assert.deepEqual(bulkFillsFor(dim, "minecraft:cave_vines"), [
             "fill 0 0 0 15 127 15 minecraft:air replace minecraft:cave_vines"

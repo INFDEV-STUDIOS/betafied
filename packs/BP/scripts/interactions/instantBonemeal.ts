@@ -2,18 +2,12 @@ import { BlockVolume, system } from "@minecraft/server";
 import type { Dimension, Vector3 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError } from "../core/errorReporter.js";
+import { POST_BETA_TALL_PLANTS } from "../core/compatibilityPolicy.js";
 
 const BLOCKED_TARGETS = Object.freeze(new Set([
     "minecraft:brown_mushroom",
     "minecraft:red_mushroom"
 ]));
-
-// Beta never knew the two-block grasses; the modern spread plants them alongside the single-block
-// grass plant, so the patch has to be swept once the engine has finished growing it.
-const POST_BETA_TALL_PLANTS = Object.freeze([
-    "minecraft:tall_grass",
-    "minecraft:large_fern"
-]);
 
 // Bone meal on grass spreads across the clicked block's neighbourhood, so the sweep covers the
 // same 15x5x15 volume the vanilla feature reaches into.

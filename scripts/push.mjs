@@ -270,14 +270,25 @@ async function syncScriptPermissions(sftp, packUuid) {
   try {
     let props = (await sftp.get(propPath)).toString();
     let propChanged = false;
-    if (props.includes("content-log-console-output-enabled=false")) {
-      props = props.replace("content-log-console-output-enabled=false", "content-log-console-output-enabled=true");
+
+    // Upsert, not repair. Repairing only the literal `=false` form meant a key that was absent
+    // altogether left logging off, which is exactly the state a fresh server.properties ships in.
+    const enable = (key) => {
+      const anyValue = new RegExp(`^${key}=.*\\r?$`, "m");
+      if (anyValue.test(props)) {
+        if (new RegExp(`^${key}=true\\r?$`, "m").test(props)) return;
+        props = props.replace(anyValue, `${key}=true`);
+        propChanged = true;
+        return;
+      }
+      if (!props.endsWith("\n")) props += "\n";
+      props += `${key}=true\n`;
       propChanged = true;
-    }
-    if (props.includes("content-log-file-enabled=false")) {
-      props = props.replace("content-log-file-enabled=false", "content-log-file-enabled=true");
-      propChanged = true;
-    }
+    };
+
+    enable("content-log-console-output-enabled");
+    enable("content-log-file-enabled");
+
     if (propChanged) {
       await sftp.put(Buffer.from(props), propPath);
     }

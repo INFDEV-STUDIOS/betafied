@@ -1,4 +1,4 @@
-import { isBetaBlock, isBetaItem, isVanillaId } from "./betaRegistry.js";
+import { BH_BOW_ID, BH_CHEST_ID, BH_FENCE_ID, isBetaBlock, isBetaItem, isVanillaId, WOOD_SPECIES } from "./betaRegistry.js";
 
 export type NormalizationAction = "keep" | "convert" | "remove";
 
@@ -13,37 +13,10 @@ const ORE_DROP_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze({
     "minecraft:raw_copper": "minecraft:iron_ore"
 });
 
-const BANNED_DROPS = Object.freeze(new Set([
-    "minecraft:rotten_flesh",
-    "minecraft:ender_pearl",
-    "minecraft:blaze_rod",
-    "minecraft:ghast_tear",
-    "minecraft:magma_cream",
-    "minecraft:nether_star",
-    "minecraft:spider_eye",
-    "minecraft:fermented_spider_eye",
-    "minecraft:phantom_membrane",
-    "minecraft:rabbit_foot",
-    "minecraft:rabbit_hide",
-    "minecraft:mutton",
-    "minecraft:cooked_mutton",
-    "minecraft:rabbit",
-    "minecraft:cooked_rabbit",
-    "minecraft:rabbit_stew",
-    "minecraft:prismarine_shard",
-    "minecraft:prismarine_crystals",
-    "minecraft:shulker_shell",
-    "minecraft:dragon_breath",
-    "minecraft:nautilus_shell",
-    "minecraft:heart_of_the_sea",
-    "minecraft:turtle_scute",
-    "minecraft:armadillo_scute"
-]));
-
 export function normalizeEntityDrop(itemId: string): NormalizationResult {
-    if (BANNED_DROPS.has(itemId)) {
-        return { action: "remove" };
-    }
+    // No explicit banned set: `normalizeItem` already removes every vanilla id the registry does not
+    // recognize, so a hand-maintained list of "bad" drops would only be a second owner of the same
+    // fact and could drift from the allowlist it was meant to mirror.
     const oreReplacement = ORE_DROP_CONVERSIONS[itemId];
     if (oreReplacement) {
         return { action: "convert", targetId: oreReplacement };
@@ -99,7 +72,7 @@ function matchWoodBuilding(bareId: string): NormalizationResult | null {
     if (bareId.endsWith("_log") || bareId.endsWith("_stem") || bareId.endsWith("_wood") || bareId.includes("stripped_") || bareId === "wood" || bareId === "log" || bareId === "log2") {
         return { action: "convert", targetId: "minecraft:oak_log" };
     }
-    if (bareId.endsWith("_fence") || bareId.endsWith("_fence_gate")) return { action: "convert", targetId: "bh:fence" };
+    if (bareId.endsWith("_fence") || bareId.endsWith("_fence_gate")) return { action: "convert", targetId: BH_FENCE_ID };
 
     if (bareId.endsWith("_stairs")) {
         return { action: "convert", targetId: isStoneCompound(bareId) ? "minecraft:cobblestone_stairs" : "minecraft:oak_stairs" };
@@ -187,16 +160,19 @@ export function resolvePlacerReplacement(id: string): string | undefined {
     if (bareId === "chest") {
         // The Beta chest is the custom block: it wears the era's model and its halves pair through
         // script, so a vanilla chest in a hotbar would place a block that never pairs.
-        return "bh:chest";
+        return BH_CHEST_ID;
+    }
+
+    if (bareId.endsWith("_fence") || bareId.endsWith("_fence_gate")) {
+        // Beta had a single wooden fence and no gates. A vanilla fence left in a hotbar places the
+        // modern block, whose connection state nothing maintains and which never joins the pack's
+        // bh:fence, so every species collapses onto bh:fence instead of converting a tick later.
+        return BH_FENCE_ID;
     }
 
     if (bareId.endsWith("_stairs")) {
         const prefix = bareId.replace(/_mosaic_stairs|_stairs/, "");
-        const isWood = prefix === "oak" || prefix === "spruce" || prefix === "birch" ||
-            prefix === "jungle" || prefix === "acacia" || prefix === "dark_oak" ||
-            prefix === "mangrove" || prefix === "cherry" || prefix === "pale_oak" ||
-            prefix === "bamboo" || prefix === "crimson" || prefix === "warped";
-        return isWood ? "bh:oak_stairs" : "bh:cobblestone_stairs";
+        return WOOD_SPECIES.has(prefix) ? "bh:oak_stairs" : "bh:cobblestone_stairs";
     }
 
     if (bareId.endsWith("_slab") || bareId.startsWith("stone_block_slab")) {
@@ -213,4 +189,66 @@ export function resolvePlacerReplacement(id: string): string | undefined {
     }
 
     return undefined;
+}
+
+/**
+ * Vanilla foods the inventory sweep retypes into the custom `bh:` items that carry Beta's
+ * instant-consumption behaviour. Mirrored on the drop path so a dropped porkchop is already the
+ * item it will merge into, rather than a vanilla stack the engine can never combine with the bh one.
+ */
+export const FOOD_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze({
+    "minecraft:apple": "bh:apple",
+    "minecraft:bread": "bh:bread",
+    "minecraft:porkchop": "bh:porkchop",
+    "minecraft:cooked_porkchop": "bh:cooked_porkchop",
+    "minecraft:cod": "bh:cod",
+    "minecraft:cooked_cod": "bh:cooked_cod",
+    "minecraft:golden_apple": "bh:golden_apple",
+    "minecraft:cookie": "bh:cookie",
+    "minecraft:salmon": "bh:cod",
+    "minecraft:cooked_salmon": "bh:cooked_cod",
+    // Bedrock's fishing tables name the raw/cooked fish items as `fish`/`cooked_fish`; the registry
+    // and this table both accept them so a caught fish lands on the bh: item the sweep keeps.
+    "minecraft:fish": "bh:cod",
+    "minecraft:cooked_fish": "bh:cooked_cod"
+});
+
+/**
+ * The identifier the inventory sweep leaves an item as when it is picked up, or `undefined` when
+ * the sweep does not retype it.
+ *
+ * The sweep and the drop rewriter must agree on the final identifier: a ground item left as the
+ * vanilla id is a different item from the stack it is destined for, so the engine has no stack to
+ * merge a second pickup into and the inventory fills with hand-stacked singles. `resolvePlacerReplacement`
+ * covers the placed blocks; the bow and the foods are retyped outside it, and this is the one place
+ * both paths resolve them.
+ */
+export function resolveHeldItemReplacement(id: string): string | undefined {
+    if (id === "minecraft:bow") {
+        return BH_BOW_ID;
+    }
+    return resolvePlacerReplacement(id) ?? FOOD_CONVERSIONS[id];
+}
+
+/**
+ * The identifier an item entity must carry once Betafied has normalized it, or `null` when the item
+ * has no Beta 1.7.3 counterpart and must not sit on the ground at all.
+ *
+ * Both the spawn handler and the periodic cleaner resolve through this one function, so a ground
+ * item is always the exact id the inventory sweep will merge it into.
+ */
+export function resolveDropId(itemId: string): string | null {
+    const retyped = resolveHeldItemReplacement(itemId);
+    if (retyped !== undefined) {
+        return retyped;
+    }
+
+    const drop = normalizeEntityDrop(itemId);
+    if (drop.action === "remove") {
+        return null;
+    }
+    if (drop.action === "convert" && drop.targetId) {
+        return drop.targetId;
+    }
+    return itemId;
 }

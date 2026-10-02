@@ -1,0 +1,19 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "minecraft:ice_plains_spikes"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#97BE4B"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#7DAD1E"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#77A9FF"
+      }
+    }
+  }
+}

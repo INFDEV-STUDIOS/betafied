@@ -3,6 +3,9 @@ node_modules/
 build/
 *.tsbuildinfo
 .DS_Store
+
+# Local scratch inputs for scripts/derive-biome-colors.mjs (Mojang colormap assets, not ours to ship)
+.scratch/
 .env
 .env.*
 !.env.example

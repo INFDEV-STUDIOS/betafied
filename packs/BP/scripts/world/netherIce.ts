@@ -1,12 +1,13 @@
 import { system } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError } from "../core/errorReporter.js";
+import { NETHER_ID } from "../core/betaConstants.js";
 
 eventBus.onPlayerBreakBlock((event) => {
     try {
         const { block, brokenBlockPermutation, dimension } = event;
 
-        if (dimension.id !== "minecraft:the_nether") return;
+        if (dimension.id !== NETHER_ID) return;
         if (brokenBlockPermutation.type.id !== "minecraft:ice") return;
 
         const location = block.location;

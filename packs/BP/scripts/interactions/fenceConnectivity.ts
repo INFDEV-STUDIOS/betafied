@@ -1,8 +1,10 @@
 import { system, BlockPermutation, Block } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
+import { reportError } from "../core/errorReporter.js";
+import { BH_FENCE_ID } from "../core/betaRegistry.js";
 
 const CONFIG = Object.freeze({
-    FENCE_ID: "bh:fence",
+    FENCE_ID: BH_FENCE_ID,
     STATE_ID: "bh:connections"
 });
 
@@ -61,8 +63,14 @@ eventBus.onPlayerBreakBlock((ev) => {
         try {
             const nb = dim.getBlock(pos);
             if (nb?.typeId === CONFIG.FENCE_ID) updateFenceBlock(nb);
-        } catch {
-            // Block query boundary safety
+        } catch (e) {
+            // An unloaded neighbour is not an answer about connectivity, so report it rather than
+            // leaving the fence silently holding a stale connection mask.
+            reportError({
+                system: "fenceConnectivity",
+                operation: "updateNeighbour",
+                target: `${pos.x},${pos.y},${pos.z}`
+            }, e);
         }
     }
 });

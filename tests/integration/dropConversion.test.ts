@@ -76,4 +76,36 @@ describe("Drop conversion - picked-up items match their stack", () => {
         assert.equal(removed(), true, "rotten flesh is not a Beta drop");
         assert.equal(spawned.length, 0, "a banned drop must not be replaced with anything");
     });
+
+    it("drops a bow as bh:bow so pickups merge", () => {
+        const { entity, spawned } = brokenDrop("minecraft:bow");
+        eventBus.dispatch("entitySpawn", { entity });
+
+        assert.equal(spawned.length, 1, "the vanilla bow drop must land on the bh id");
+        assert.equal(spawned[0].typeId, "bh:bow", "the ground item must be the id the inventory keeps");
+    });
+
+    it("retypes a Beta food drop to its instant-eat bh item", () => {
+        const { entity, spawned } = brokenDrop("minecraft:porkchop", 4);
+        eventBus.dispatch("entitySpawn", { entity });
+
+        assert.equal(spawned[0]?.typeId, "bh:porkchop", "food must match the id the inventory sweeps to");
+        assert.equal(spawned[0]?.amount, 4, "whole stack rides across the respawn");
+    });
+
+    it("converts a modern fish instead of deleting it", () => {
+        const { entity, spawned, removed } = brokenDrop("minecraft:salmon");
+        eventBus.dispatch("entitySpawn", { entity });
+
+        assert.equal(removed(), true, "the vanilla salmon entity is replaced, not kept");
+        assert.equal(spawned[0]?.typeId, "bh:cod", "salmon collapses to the Beta cod item");
+    });
+
+    it("leaves an already-final bh food untouched", () => {
+        const { entity, spawned, removed } = brokenDrop("bh:porkchop", 2);
+        eventBus.dispatch("entitySpawn", { entity });
+
+        assert.equal(spawned.length, 0, "a bh item needs no respawn");
+        assert.equal(removed(), false, "a bh item must not be deleted");
+    });
 });

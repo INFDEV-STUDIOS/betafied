@@ -6,6 +6,7 @@ import {
     system
 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
+import { BH_BOW_ID } from "../core/betaRegistry.js";
 
 const CONFIG = Object.freeze({
     FIRE_COOLDOWN: 2,
@@ -87,7 +88,7 @@ eventBus.onItemUseAfter((ev) => {
     const item = ev.itemStack;
 
     if (!(player instanceof Player)) return;
-    if (item?.typeId !== "bh:bow") return;
+    if (item?.typeId !== BH_BOW_ID) return;
     fireArrow(player);
 });
 
@@ -96,7 +97,7 @@ eventBus.onItemStartUse((ev) => {
     const item = ev.itemStack;
 
     if (!(player instanceof Player)) return;
-    if (item?.typeId !== "bh:bow") return;
+    if (item?.typeId !== BH_BOW_ID) return;
 
     stopHoldFiring(player.id);
 
@@ -109,7 +110,7 @@ eventBus.onItemStartUse((ev) => {
 
             const invComp = player.getComponent(EntityComponentTypes.Inventory);
             const currentItem = invComp?.container?.getItem(player.selectedSlotIndex);
-            if (currentItem?.typeId !== "bh:bow") {
+            if (currentItem?.typeId !== BH_BOW_ID) {
                 stopHoldFiring(player.id);
                 return;
             }

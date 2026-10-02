@@ -383,4 +383,70 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
             });
         });
     });
+
+    describe("Vanilla placers the placement handler no longer repairs", () => {
+        // `placement.ts` used to force the Beta shape onto a vanilla slab, stair and log *after* it was
+        // already placed, a tick late, because the player could supposedly place one. They cannot: the
+        // sweep retypes every placer below before it can reach a hotbar, so those repairs were
+        // unreachable. This pins that premise — if any of them stops converting, the repair comes back.
+        const VANILLA_PLACERS = [
+            "minecraft:cobblestone_slab",
+            "minecraft:oak_slab",
+            "minecraft:smooth_stone_slab",
+            "minecraft:sandstone_slab",
+            "minecraft:oak_stairs",
+            "minecraft:stone_stairs",
+            "minecraft:cobblestone_stairs",
+            "minecraft:oak_log",
+            "minecraft:birch_log",
+            "minecraft:spruce_log"
+        ];
+
+        for (const typeId of VANILLA_PLACERS) {
+            it(`retypes ${typeId} onto its bh: block before it can be placed`, () => {
+                const action = evaluateItemAction(new ItemStack(typeId, 1));
+
+                assert.equal(action.type, "replace", `${typeId} must not survive a sweep as a vanilla placer`);
+                if (action.type === "replace") {
+                    assert.ok(
+                        action.item.typeId.startsWith("bh:"),
+                        `${typeId} must become a custom block, got ${action.item.typeId}`
+                    );
+                }
+            });
+        }
+
+        it("collapses every vanilla fence species onto the single Beta fence", () => {
+            // A vanilla fence's connection state is maintained by nothing in this pack and it never
+            // joins a bh:fence line, so leaving one placeable puts a fence in the world that will not
+            // connect to the fence beside it.
+            const fences = [
+                "minecraft:oak_fence",
+                "minecraft:birch_fence",
+                "minecraft:spruce_fence",
+                "minecraft:jungle_fence",
+                "minecraft:acacia_fence",
+                "minecraft:dark_oak_fence",
+                "minecraft:nether_brick_fence"
+            ];
+
+            for (const typeId of fences) {
+                const action = evaluateItemAction(new ItemStack(typeId, 1));
+
+                assert.equal(action.type, "replace", `${typeId} must convert`);
+                if (action.type === "replace") {
+                    assert.equal(action.item.typeId, "bh:fence", `${typeId} must collapse onto bh:fence`);
+                }
+            }
+        });
+
+        it("keeps a fence stack whole across the retype", () => {
+            const action = evaluateItemAction(new ItemStack("minecraft:oak_fence", 7));
+
+            assert.equal(action.type, "replace");
+            if (action.type === "replace") {
+                assert.equal(action.item.amount, 7, "the whole stack must ride across");
+            }
+        });
+    });
 });

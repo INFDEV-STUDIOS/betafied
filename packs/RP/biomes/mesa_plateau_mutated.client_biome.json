@@ -1,0 +1,19 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "minecraft:mesa_plateau_mutated"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#B1B953"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#9EA728"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#77A9FF"
+      }
+    }
+  }
+}

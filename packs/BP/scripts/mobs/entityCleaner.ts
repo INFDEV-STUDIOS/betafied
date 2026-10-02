@@ -1,7 +1,7 @@
 import { world, ItemStack, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
-import { normalizeEntityDrop } from "../core/normalizer.js";
+import { resolveDropId } from "../core/normalizer.js";
 import { tickManager } from "../core/tickManager.js";
 
 const CONFIG = Object.freeze({
@@ -34,15 +34,15 @@ export function* cleanerJob(): Generator<void, void, unknown> {
                     const itemComp = ent.getComponent(EntityComponentTypes.Item);
                     const itemStack = itemComp?.itemStack;
                     if (itemStack) {
-                        const dropResult = normalizeEntityDrop(itemStack.typeId);
-                        if (dropResult.action === "remove") {
+                        const finalId = resolveDropId(itemStack.typeId);
+                        if (finalId === null) {
                             ent.remove();
-                        } else if (dropResult.action === "convert" && dropResult.targetId) {
+                        } else if (finalId !== itemStack.typeId) {
                             const loc = ent.location;
                             const dim = ent.dimension;
                             const amount = itemStack.amount;
                             ent.remove();
-                            dim.spawnItem(new ItemStack(dropResult.targetId, amount), loc);
+                            dim.spawnItem(new ItemStack(finalId, amount), loc);
                         }
                     }
                 }

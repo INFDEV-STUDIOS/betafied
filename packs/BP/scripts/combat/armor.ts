@@ -1,5 +1,4 @@
 import {
-    EquipmentSlot,
     EntityDamageCause,
     Player,
     ItemComponentTypes,
@@ -10,6 +9,8 @@ import {
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { runCatching } from "../core/errorReporter.js";
+import { ARMOR_SLOTS } from "../core/equipmentSlots.js";
+import { isVanillaId } from "../core/betaRegistry.js";
 
 const CONFIG = Object.freeze({
     REDUCTION_PER_POINT: 0.04,
@@ -26,10 +27,7 @@ const ARMOR_TABLE: Readonly<Record<string, number>> = Object.freeze({
     "minecraft:iron_helmet": 2, "minecraft:iron_chestplate": 6,
     "minecraft:iron_leggings": 5, "minecraft:iron_boots": 2,
     "minecraft:diamond_helmet": 3, "minecraft:diamond_chestplate": 8,
-    "minecraft:diamond_leggings": 6, "minecraft:diamond_boots": 3,
-    "minecraft:netherite_helmet": 3, "minecraft:netherite_chestplate": 8,
-    "minecraft:netherite_leggings": 6, "minecraft:netherite_boots": 3,
-    "minecraft:turtle_helmet": 2
+    "minecraft:diamond_leggings": 6, "minecraft:diamond_boots": 3
 });
 
 const BYPASS_SOURCES = Object.freeze(new Set([
@@ -39,18 +37,11 @@ const BYPASS_SOURCES = Object.freeze(new Set([
     "suicide"
 ]));
 
-const SLOTS = Object.freeze([
-    EquipmentSlot.Head,
-    EquipmentSlot.Chest,
-    EquipmentSlot.Legs,
-    EquipmentSlot.Feet
-]);
-
 export function damageArmor(player: Player): void {
     const equip = player.getComponent(EntityComponentTypes.Equippable);
     if (!equip) return;
 
-    for (const slot of SLOTS) {
+    for (const slot of ARMOR_SLOTS) {
         const item = equip.getEquipment(slot);
         if (!item) continue;
 
@@ -84,6 +75,11 @@ export function getBaseArmorPoints(typeId: string): number {
     const mcDirect = ARMOR_TABLE[mcEquivalent];
     if (mcDirect !== undefined) return mcDirect;
 
+    // A vanilla id reaches this point only when it is not authentic Beta armor (netherite, turtle),
+    // so it gets no points. The suffix heuristic exists for third-party addon armor, which cannot be
+    // enumerated here; applying it to a vanilla id would contradict the registry that strips the gear.
+    if (isVanillaId(typeId)) return 0;
+
     if (baseName.endsWith("_helmet") || baseName.endsWith("_cap")) return 2;
     if (baseName.endsWith("_chestplate") || baseName.endsWith("_tunic")) return 6;
     if (baseName.endsWith("_leggings") || baseName.endsWith("_pants")) return 5;
@@ -98,7 +94,7 @@ export function getEffectiveArmorPoints(player: Player): number {
 
     let points = 0;
 
-    for (const slot of SLOTS) {
+    for (const slot of ARMOR_SLOTS) {
         const item = equip.getEquipment(slot);
         if (!item) continue;
 

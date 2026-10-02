@@ -1,0 +1,19 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "minecraft:lukewarm_ocean"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#89BA6F"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#6CA84B"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#7BA5FF"
+      }
+    }
+  }
+}

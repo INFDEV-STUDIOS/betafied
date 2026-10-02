@@ -48,6 +48,9 @@ function sweepTicks(limit: number): void {
     }
 }
 
+// Wiring-only: the sweep is driven against the mock's fixed +Z view direction and its own block
+// map, so these cases pin our sighting geometry, spot picker and dismissal timers rather than the
+// engine's. Real facing, chunk loading and entity retention across ticks need an in-game check.
 describe("Herobrine Appearance Integration", () => {
     it("registers the /appear custom command as operator-only", () => {
         const callbacks = registeredBeforeEvents.get("startup") ?? [];

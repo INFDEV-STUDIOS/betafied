@@ -8,7 +8,43 @@
  * Inversion only ever applies to the vanilla namespace — see `isVanillaId`.
  */
 
-export const BETA_ENTITY_TYPES: Readonly<Set<string>> = Object.freeze(new Set([
+/** The addon's replacement ids the pack retypes vanilla content onto. */
+export const BH_FENCE_ID = "bh:fence";
+export const BH_CHEST_ID = "bh:chest";
+export const BH_BOW_ID = "bh:bow";
+export const BH_CRAFTING_TABLE_ID = "bh:crafting_table";
+
+/** Beta's passive animals. The animal-AI hop and the spawn gate both ask this one question. */
+export const BETA_PASSIVE_TYPES: ReadonlySet<string> = Object.freeze(new Set([
+    "minecraft:chicken",
+    "minecraft:cow",
+    "minecraft:pig",
+    "minecraft:sheep",
+    "minecraft:squid",
+    "minecraft:wolf"
+]));
+
+/** The zombie pigman exists under two ids across Bedrock versions; both carry the same gear. */
+export const BETA_PIGMAN_TYPES: ReadonlySet<string> = Object.freeze(new Set([
+    "minecraft:zombie_pigman",
+    "minecraft:zombified_piglin"
+]));
+
+/**
+ * Beta's hostile mobs. `achievements.ts` grants Monster Hunter from this one set rather than its own
+ * list, so a mob added to the era cannot be killable-but-not-counted.
+ */
+export const BETA_HOSTILE_TYPES: ReadonlySet<string> = Object.freeze(new Set([
+    "minecraft:zombie",
+    "minecraft:skeleton",
+    "minecraft:creeper",
+    "minecraft:spider",
+    "minecraft:slime",
+    "minecraft:ghast",
+    ...BETA_PIGMAN_TYPES
+]));
+
+export const BETA_ENTITY_TYPES: ReadonlySet<string> = Object.freeze(new Set([
     "minecraft:player",
     "minecraft:item",
     "minecraft:arrow",
@@ -27,29 +63,28 @@ export const BETA_ENTITY_TYPES: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:furnace_minecart",
     "ubd:furnace_minecart",
     "custom:furnace_minecart",
-    "minecraft:chicken",
-    "minecraft:cow",
-    "minecraft:pig",
-    "minecraft:sheep",
-    "minecraft:squid",
-    "minecraft:wolf",
-    "minecraft:zombie",
-    "minecraft:skeleton",
-    "minecraft:creeper",
-    "minecraft:spider",
-    "minecraft:slime",
-    "minecraft:ghast",
-    "minecraft:zombie_pigman",
-    "minecraft:zombified_piglin"
+    ...BETA_PASSIVE_TYPES,
+    ...BETA_HOSTILE_TYPES
+]));
+
+/** The tiered swords and pickaxes, shared with the mining-reach subsystems so they need no own list. */
+export const BETA_SWORD_IDS: ReadonlySet<string> = Object.freeze(new Set([
+    "minecraft:wooden_sword", "minecraft:stone_sword", "minecraft:iron_sword",
+    "minecraft:golden_sword", "minecraft:diamond_sword"
+]));
+
+export const BETA_PICKAXE_IDS: ReadonlySet<string> = Object.freeze(new Set([
+    "minecraft:wooden_pickaxe", "minecraft:stone_pickaxe", "minecraft:iron_pickaxe",
+    "minecraft:golden_pickaxe", "minecraft:diamond_pickaxe"
 ]));
 
 export const BETA_ITEM_IDS: Readonly<Set<string>> = Object.freeze(new Set([
-    "minecraft:wooden_sword", "minecraft:stone_sword", "minecraft:iron_sword", "minecraft:golden_sword", "minecraft:diamond_sword",
-    "minecraft:wooden_pickaxe", "minecraft:stone_pickaxe", "minecraft:iron_pickaxe", "minecraft:golden_pickaxe", "minecraft:diamond_pickaxe",
+    ...BETA_SWORD_IDS,
+    ...BETA_PICKAXE_IDS,
     "minecraft:wooden_axe", "minecraft:stone_axe", "minecraft:iron_axe", "minecraft:golden_axe", "minecraft:diamond_axe",
     "minecraft:wooden_shovel", "minecraft:stone_shovel", "minecraft:iron_shovel", "minecraft:golden_shovel", "minecraft:diamond_shovel",
     "minecraft:wooden_hoe", "minecraft:stone_hoe", "minecraft:iron_hoe", "minecraft:golden_hoe", "minecraft:diamond_hoe",
-    "minecraft:bow", "bh:bow", "minecraft:arrow",
+    "minecraft:bow", BH_BOW_ID, "minecraft:arrow",
     "minecraft:flint_and_steel", "minecraft:shears", "minecraft:fishing_rod",
     "minecraft:compass", "minecraft:clock",
     "minecraft:leather_helmet", "minecraft:leather_chestplate", "minecraft:leather_leggings", "minecraft:leather_boots",
@@ -58,7 +93,11 @@ export const BETA_ITEM_IDS: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:golden_helmet", "minecraft:golden_chestplate", "minecraft:golden_leggings", "minecraft:golden_boots",
     "minecraft:diamond_helmet", "minecraft:diamond_chestplate", "minecraft:diamond_leggings", "minecraft:diamond_boots",
     "minecraft:apple", "minecraft:golden_apple", "minecraft:mushroom_stew", "minecraft:bread",
-    "minecraft:porkchop", "minecraft:cooked_porkchop", "minecraft:cod", "minecraft:cooked_cod",
+    "minecraft:porkchop", "minecraft:cooked_porkchop",
+    // Bedrock's raw and cooked fish are `fish`/`cooked_fish`; Java's `cod` never existed as an item
+    // here. Both spellings stay registered because the normalizer cannot see which vocabulary the
+    // engine reports, and the food table maps whichever arrives onto the same `bh:` item.
+    "minecraft:fish", "minecraft:cooked_fish", "minecraft:cod", "minecraft:cooked_cod",
     "minecraft:cookie", "minecraft:cake",
     "bh:apple", "bh:bread", "bh:porkchop", "bh:cooked_porkchop", "bh:cod", "bh:cooked_cod", "bh:golden_apple", "bh:cookie",
     "bh:oak_stairs", "bh:cobblestone_stairs", "bh:oak_log", "bh:birch_log", "bh:spruce_log",
@@ -115,6 +154,55 @@ export function isVanillaId(typeId: string): boolean {
     return getNamespace(typeId) === VANILLA_NAMESPACE;
 }
 
+/**
+ * Beta's wool palette in Bedrock's colour-component order: index `n` is the wool a sheep with colour
+ * value `n` yields. The shearing loot table and the vanilla colour-index function both resolve here,
+ * and `BETA_BLOCK_IDS` is built from it so there is one owner of the palette.
+ */
+export const WOOL_BY_COLOR: readonly string[] = Object.freeze([
+    "minecraft:white_wool",
+    "minecraft:orange_wool",
+    "minecraft:magenta_wool",
+    "minecraft:light_blue_wool",
+    "minecraft:yellow_wool",
+    "minecraft:lime_wool",
+    "minecraft:pink_wool",
+    "minecraft:gray_wool",
+    "minecraft:light_gray_wool",
+    "minecraft:cyan_wool",
+    "minecraft:purple_wool",
+    "minecraft:blue_wool",
+    "minecraft:brown_wool",
+    "minecraft:green_wool",
+    "minecraft:red_wool",
+    "minecraft:black_wool"
+]);
+
+// Beta's three wood species. Everything else is a modern species whose blocks normalize onto these.
+export const BETA_WOOD_SPECIES: ReadonlySet<string> = Object.freeze(new Set([
+    "oak", "birch", "spruce"
+]));
+
+/**
+ * Post-Beta species whose planks vanilla still lays down as generated terrain. The scrubber repaints
+ * these in bulk; the other post-Beta species only ever arrive as items or structures and reach the
+ * fine pass one block at a time.
+ */
+export const TERRAIN_PLANK_SPECIES: readonly string[] = Object.freeze([
+    "mangrove", "cherry", "bamboo", "crimson", "warped", "pale_oak"
+]);
+
+export const POST_BETA_WOOD_SPECIES: ReadonlySet<string> = Object.freeze(new Set([
+    ...TERRAIN_PLANK_SPECIES,
+    "jungle", "acacia", "dark_oak"
+]));
+
+/** Every wood species whose building blocks normalize onto the Beta set. */
+export const WOOD_SPECIES: ReadonlySet<string> = Object.freeze(new Set([
+    ...BETA_WOOD_SPECIES,
+    ...POST_BETA_WOOD_SPECIES
+]));
+
 export const BETA_BLOCK_IDS: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:stone", "minecraft:cobblestone", "minecraft:mossy_cobblestone",
     "minecraft:dirt", "minecraft:grass_block", "minecraft:sand", "minecraft:gravel",
@@ -135,13 +223,10 @@ export const BETA_BLOCK_IDS: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:oak_slab", "minecraft:cobblestone_slab", "minecraft:stone_slab", "minecraft:smooth_stone_slab", "minecraft:sandstone_slab",
     "bh:oak_stairs", "bh:cobblestone_stairs", "bh:oak_log", "bh:birch_log", "bh:spruce_log",
     "bh:wooden_slab", "bh:cobblestone_slab", "bh:sandstone_slab", "bh:stone_slab",
-    "minecraft:oak_fence", "bh:fence",
+    "minecraft:oak_fence", BH_FENCE_ID,
     "minecraft:bricks", "minecraft:brick_block", "minecraft:bookshelf",
     "minecraft:glass", "minecraft:ladder", "minecraft:torch",
-    "minecraft:white_wool", "minecraft:orange_wool", "minecraft:magenta_wool", "minecraft:light_blue_wool",
-    "minecraft:yellow_wool", "minecraft:lime_wool", "minecraft:pink_wool", "minecraft:gray_wool",
-    "minecraft:light_gray_wool", "minecraft:cyan_wool", "minecraft:purple_wool", "minecraft:blue_wool",
-    "minecraft:brown_wool", "minecraft:green_wool", "minecraft:red_wool", "minecraft:black_wool",
+    ...WOOL_BY_COLOR,
     "minecraft:chest", "minecraft:crafting_table", "minecraft:furnace", "minecraft:lit_furnace",
     "minecraft:jukebox", "minecraft:noteblock", "minecraft:dispenser", "minecraft:monster_spawner", "minecraft:spawner",
     "minecraft:iron_block", "minecraft:gold_block", "minecraft:diamond_block", "minecraft:lapis_block", "minecraft:tnt",

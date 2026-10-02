@@ -65,7 +65,7 @@ describe("Beta floor - deep world sealing", () => {
 
         for (const command of bumps) {
             const [, fx1, fy1, fz1, fx2, fy2, fz2] = command.split(" ");
-            assert.ok(Number(fy1) >= 1 && Number(fy2) <= 3, "bumps sit just above the base");
+            assert.ok(Number(fy1) >= 1 && Number(fy2) <= 2, "bumps sit just above the base");
             assert.ok(Number(fy2) >= Number(fy1), "each bump is a contiguous vertical run");
             assert.ok(Number(fx1) >= x1 && Number(fx2) <= x1 + 15, "bumps stay inside the chunk in X");
             assert.ok(Number(fz1) >= z1 && Number(fz2) <= z1 + 15, "bumps stay inside the chunk in Z");
@@ -103,7 +103,7 @@ describe("Beta floor - stray bedrock repair", () => {
 
         assert.deepEqual(
             stray.commands,
-            ["fill 0 4 0 15 131 15 minecraft:air replace minecraft:bedrock"],
+            ["fill 0 3 0 15 130 15 minecraft:air replace minecraft:bedrock"],
             `expected one clear above the ceiling, got: ${stray.commands.join(" | ")}`
         );
     });

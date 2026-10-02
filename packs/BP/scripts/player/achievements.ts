@@ -9,6 +9,7 @@ import {
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { BETA_HOSTILE_TYPES, BH_CRAFTING_TABLE_ID } from "../core/betaRegistry.js";
 
 
 const ACH = Object.freeze({
@@ -69,15 +70,6 @@ const TITLES: Readonly<Record<AchievementKey, string>> = Object.freeze({
     [ACH.ON_A_RAIL]: "On A Rail"
 });
 
-const HOSTILES = Object.freeze(new Set([
-    "minecraft:zombie",
-    "minecraft:skeleton",
-    "minecraft:spider",
-    "minecraft:creeper",
-    "minecraft:zombie_pigman",
-    "minecraft:zombified_piglin"
-]));
-
 const TOTAL_ACHIEVEMENTS = Object.keys(ACH).length;
 
 class AchievementSystem {
@@ -128,7 +120,7 @@ class AchievementSystem {
             const damager = ev.damageSource.damagingEntity;
             if (damager && damager.typeId === "minecraft:player" && damager instanceof Player) {
                 const victim = ev.deadEntity;
-                if (victim && HOSTILES.has(victim.typeId)) {
+                if (victim && BETA_HOSTILE_TYPES.has(victim.typeId)) {
                     this.grant(damager, ACH.MONSTER_HUNTER);
                 }
             }
@@ -209,7 +201,7 @@ class AchievementSystem {
             const id = item.typeId;
 
             if (id.includes("_log")) hasLog = true;
-            if (id === "minecraft:crafting_table" || id === "bh:crafting_table") hasBench = true;
+            if (id === "minecraft:crafting_table" || id === BH_CRAFTING_TABLE_ID) hasBench = true;
             if (id.includes("_sword")) hasSword = true;
             if (id.includes("_hoe")) hasHoe = true;
             if (id.includes("_pickaxe")) hasWoodPick = true;
