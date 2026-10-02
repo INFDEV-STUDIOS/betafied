@@ -11,9 +11,23 @@ import { isTreeAppleDrop } from "../../packs/BP/scripts/mobs/entitySpawnHandler.
 import { eventBus } from "../../packs/BP/scripts/core/eventBus.js";
 import { mockPlayers, resetMocks, Player } from "../mocks/minecraftServer.js";
 
+// Wiring-only: every case replays our own spawn handler through the mock, so this pins the
+// predicate's decision table rather than the engine's behaviour. Whether Bedrock really reports a
+// leaf-decay apple with a populated location and a readable Item component at entitySpawn time is
+// an assumption this file cannot test and has to be confirmed on a client.
 describe("Authentic Beta 1.7.3 Leaf Apple Drops Policy", () => {
+    const spawnedItems: { typeId: string; amount: number }[] = [];
+    const overworld = world.getDimension("minecraft:overworld") as any;
+
     beforeEach(() => {
         resetMocks();
+        spawnedItems.length = 0;
+        // The shared overworld mock drops spawned items on the floor; record them so the tests can
+        // see the bh:apple a non-tree apple is retyped into.
+        overworld.spawnItem = (item: ItemStack) => {
+            spawnedItems.push({ typeId: item.typeId, amount: item.amount });
+            return { id: "mock_item_entity", typeId: "minecraft:item" };
+        };
     });
 
     it("identifies and prevents apple drops when leaves are broken by a player", () => {
@@ -81,7 +95,9 @@ describe("Authentic Beta 1.7.3 Leaf Apple Drops Policy", () => {
         assert.equal(isTreeAppleDrop(appleEntity), false, "Chest apple drops must NOT be flagged as tree drops");
 
         eventBus.dispatch("entitySpawn", { entity: appleEntity });
-        assert.equal(appleEntity.isRemoved, false, "Apple entity from chest must be preserved");
+        assert.equal(appleEntity.isRemoved, true, "the vanilla apple entity is replaced, not kept");
+        assert.equal(spawnedItems.length, 1, "the chest apple must be respawned so it can merge");
+        assert.equal(spawnedItems[0].typeId, "bh:apple", "Apple entity from chest must become the Beta apple");
     });
 
     it("preserves apples dropped intentionally by players from inventory", () => {
@@ -104,7 +120,7 @@ describe("Authentic Beta 1.7.3 Leaf Apple Drops Policy", () => {
         assert.equal(isTreeAppleDrop(appleEntity), false, "Player-dropped apples must NOT be flagged as tree drops");
 
         eventBus.dispatch("entitySpawn", { entity: appleEntity });
-        assert.equal(appleEntity.isRemoved, false, "Player-dropped apple must be preserved");
+        assert.equal(spawnedItems[0]?.typeId, "bh:apple", "Player-dropped apple must land on the id the inventory keeps");
     });
 
     it("preserves apples dropped when a player dies", () => {
@@ -127,6 +143,6 @@ describe("Authentic Beta 1.7.3 Leaf Apple Drops Policy", () => {
         assert.equal(isTreeAppleDrop(appleEntity), false, "Player death inventory drops must NOT be flagged as tree drops");
 
         eventBus.dispatch("entitySpawn", { entity: appleEntity });
-        assert.equal(appleEntity.isRemoved, false, "Player death apple drop must be preserved");
+        assert.equal(spawnedItems[0]?.typeId, "bh:apple", "Player death apple drop must land on the id the inventory keeps");
     });
 });

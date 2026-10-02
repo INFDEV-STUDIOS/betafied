@@ -1,10 +1,10 @@
 import { world } from "@minecraft/server";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { END_ID, END_KEY } from "../core/betaConstants.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 10,
-    DIMENSION: "the_end",
     FINAL_POS: { x: 400, y: 80, z: 400 },
     STRUCTURE_POS: { x: 396, y: 76, z: 396 },
     STRUCTURE_NAME: "mystructure:island",
@@ -22,7 +22,7 @@ function placeIsland(): void {
     if (isIslandPlaced()) return;
 
     try {
-        const end = world.getDimension(CONFIG.DIMENSION);
+        const end = world.getDimension(END_KEY);
         world.structureManager.place(CONFIG.STRUCTURE_NAME, end, CONFIG.STRUCTURE_POS);
         world.setDynamicProperty("betafied:island_placed", true);
     } catch (e) {
@@ -54,9 +54,9 @@ export function islandJob(): void {
             placeIsland();
         }
 
-        const end = world.getDimension(CONFIG.DIMENSION);
+        const end = world.getDimension(END_KEY);
 
-        if (player.dimension.id !== `minecraft:${CONFIG.DIMENSION}`) {
+        if (player.dimension.id !== END_ID) {
             player.teleport(CONFIG.FINAL_POS, { dimension: end });
         }
 

@@ -1,7 +1,7 @@
 import { world, system, ItemStack, Entity, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
-import { normalizeEntityDrop, resolvePlacerReplacement } from "../core/normalizer.js";
+import { resolveDropId } from "../core/normalizer.js";
 import { eventBus } from "../core/eventBus.js";
 
 const recentBrokenLeaves = new Map<string, number>();
@@ -114,19 +114,13 @@ eventBus.onEntitySpawn((event) => {
                 return;
             }
 
-            const dropResult = normalizeEntityDrop(itemId);
-            if (dropResult.action === "remove") {
-                entity.remove();
-                return;
-            }
-
-            // The inventory sweeper retypes placer items into their `bh:` form on pickup, so the drop
+            // The inventory sweeper retypes held items into their `bh:` form on pickup, so the drop
             // has to land on that same identifier. Left as the vanilla id, a second log finds no stack
             // to merge into - the first one is already `bh:oak_log` - and every pickup lands alone.
-            const normalizedId = dropResult.action === "convert" && dropResult.targetId ? dropResult.targetId : itemId;
-            const finalId = resolvePlacerReplacement(itemId) ?? normalizedId;
-
-            if (finalId !== itemId) {
+            const finalId = resolveDropId(itemId);
+            if (finalId === null) {
+                entity.remove();
+            } else if (finalId !== itemId) {
                 const loc = entity.location;
                 const dim = entity.dimension;
                 entity.remove();
@@ -160,20 +154,11 @@ eventBus.onEntityDie((event) => {
             const loc = deadEntity.location;
             const locKey = `${deadEntity.dimension.id}:${Math.floor(loc.x)},${Math.floor(loc.y)},${Math.floor(loc.z)}`;
             recentPlayerDeaths.set(locKey, system.currentTick);
-            return;
-        }
-
-        // In Beta 1.7.3, zombies dropped feathers instead of rotten flesh
-        if (type === "minecraft:zombie" || type === "minecraft:zombie_villager" || type === "minecraft:husk") {
-            const count = Math.floor(Math.random() * 3);
-            if (count > 0) {
-                deadEntity.dimension.spawnItem(new ItemStack("minecraft:feather", count), deadEntity.location);
-            }
         }
     } catch (e) {
         reportError({
             system: "entitySpawnHandler",
-            operation: "featherDrop",
+            operation: "trackDeath",
             target: event.deadEntity?.typeId
         }, e);
     }

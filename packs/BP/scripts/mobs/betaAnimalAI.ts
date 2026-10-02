@@ -2,6 +2,7 @@ import { world, system, Entity, Player, ItemStack, EntityComponentTypes, Dimensi
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { WOOL_BY_COLOR } from "../core/betaRegistry.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 40,
@@ -27,24 +28,16 @@ export const PASSIVE_MOBS = Object.freeze(new Set([
     "minecraft:chicken"
 ]));
 
-export const WOOL_BY_COLOR: ReadonlyArray<string> = Object.freeze([
-    "minecraft:white_wool",
-    "minecraft:orange_wool",
-    "minecraft:magenta_wool",
-    "minecraft:light_blue_wool",
-    "minecraft:yellow_wool",
-    "minecraft:lime_wool",
-    "minecraft:pink_wool",
-    "minecraft:gray_wool",
-    "minecraft:light_gray_wool",
-    "minecraft:cyan_wool",
-    "minecraft:purple_wool",
-    "minecraft:blue_wool",
-    "minecraft:brown_wool",
-    "minecraft:green_wool",
-    "minecraft:red_wool",
-    "minecraft:black_wool"
-]);
+/**
+ * Beta 1.7.3's shearing drop, `1 + rand.nextInt(3)`.
+ *
+ * A punch and a pair of shears reach different owners for this number: shears run the engine's
+ * `minecraft:interact`, which reads `loot_tables/entities/sheep_shear.json`, while the punch path below
+ * spawns the stack itself. The two had drifted (2-4 by shears, 1-3 by punch), so both are pinned here
+ * and `tests/integration/sheepPunch.test.ts` asserts the loot table still agrees.
+ */
+export const WOOL_DROP_MIN = 1;
+export const WOOL_DROP_MAX = 3;
 
 export const hurtCooldowns = new Map<string, number>();
 export const jumpCooldowns = new Map<string, number>();
@@ -60,7 +53,7 @@ export function handleSheepPunch(sheep: Entity): void {
     const colorComp = sheep.getComponent(EntityComponentTypes.Color);
     const colorVal = typeof colorComp?.value === "number" ? colorComp.value : 0;
     const woolId = WOOL_BY_COLOR[colorVal] ?? "minecraft:white_wool";
-    const count = 1 + Math.floor(Math.random() * 3);
+    const count = WOOL_DROP_MIN + Math.floor(Math.random() * (WOOL_DROP_MAX - WOOL_DROP_MIN + 1));
 
     sheep.dimension.spawnItem(new ItemStack(woolId, count), sheep.location);
 }

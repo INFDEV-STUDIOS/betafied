@@ -1,6 +1,6 @@
 {
   "name": "betafied",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "watch:regolith": "scripts/regolith.sh watch",
     "install-filters": "scripts/regolith.sh install-all",
     "docs:fetch": "bash scripts/fetch-reference-docs.sh",
-    "generate:biomes": "node scripts/generate-biomes.mjs"
+    "generate:biomes": "node scripts/generate-biomes.mjs",
+    "generate:client-biomes": "node scripts/generate-client-biomes.mjs"
   },
   "devDependencies": {
     "@8crafter/leveldb-zlib": "^1.6.0",

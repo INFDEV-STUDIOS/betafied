@@ -14,6 +14,11 @@ import {
     biomeIdentifier,
     buildBiome
 } from "../../scripts/lib/betaBiomes.mjs";
+import {
+    BETA_NEUTRAL_TINT,
+    buildClientBiome,
+    resolveBiomeTint
+} from "../../scripts/lib/betaBiomeTints.mjs";
 
 // Every Overworld biome shipped in the vanilla behavior pack (Mojang/bedrock-samples). A biome
 // added upstream that is missing here keeps its vanilla definition, including `village_type` and
@@ -182,6 +187,111 @@ describe("Beta 1.7.3 Biome Table - Overworld Generation Integrity", () => {
                     `${shortId} has the animal tag but no positive creature spawn probability`
                 );
             }
+        }
+    });
+});
+
+describe("Beta 1.7.3 Biome Tints - Resource Pack Client Biomes", () => {
+    const clientBiomesDir = resolve(process.cwd(), "packs/RP/biomes");
+    const managed = new Set(OVERWORLD_BIOME_IDS.map(biomeIdentifier));
+
+    it("emits a client biome file for every Overworld biome the table maps", () => {
+        for (const shortId of OVERWORLD_BIOME_IDS) {
+            assert.ok(
+                existsSync(resolve(clientBiomesDir, `${shortId}.client_biome.json`)),
+                `missing client biome file for ${biomeIdentifier(shortId)}; run \`node scripts/generate-client-biomes.mjs\``
+            );
+        }
+    });
+
+    it("keeps on-disk client biome files byte-identical to the canonical tint table", () => {
+        for (const shortId of OVERWORLD_BIOME_IDS) {
+            const expected = `${JSON.stringify(buildClientBiome(shortId, OVERWORLD_BIOME_PROFILE[shortId]), null, 2)}\n`;
+            const actual = readFileSync(resolve(clientBiomesDir, `${shortId}.client_biome.json`), "utf-8");
+            assert.equal(
+                actual,
+                expected,
+                `${shortId}.client_biome.json is out of date with scripts/lib/betaBiomeTints.mjs`
+            );
+        }
+    });
+
+    it("pins a literal Beta colour rather than a colormap reference", () => {
+        // A `color_map` would re-sample the colormap with the biome's *Bedrock* temperature and
+        // downfall, which are on a different scale than Beta's climate plane, so the render would
+        // stop matching the value derived from the real colormaps.
+        for (const shortId of OVERWORLD_BIOME_IDS) {
+            const content = JSON.parse(readFileSync(resolve(clientBiomesDir, `${shortId}.client_biome.json`), "utf-8"));
+            const components = content["minecraft:client_biome"].components;
+
+            for (const component of ["minecraft:grass_appearance", "minecraft:foliage_appearance"]) {
+                const color = components[component].color;
+                assert.match(color, /^#[0-9A-F]{6}$/, `${shortId} ${component} must be a plain #rrggbb colour`);
+            }
+
+            // Sky is its own component shape: `getSkyColorByTemp` in the engine, `sky_color` here.
+            assert.match(
+                components["minecraft:sky_color"].sky_color,
+                /^#[0-9A-F]{6}$/,
+                `${shortId} minecraft:sky_color must be a plain #rrggbb colour`
+            );
+        }
+    });
+
+    it("tints the sky with Beta's temperature-derived colour", () => {
+        // Beta never stored a sky colour either: `World.getSkyColor` fed the climate temperature
+        // under the player into `BiomeGenBase.getSkyColorByTemp`. Every biome must therefore carry
+        // the value derived from its own climate, and the terrain profiles the neutral average.
+        for (const [shortId, profileName] of Object.entries(OVERWORLD_BIOME_PROFILE)) {
+            const content = JSON.parse(readFileSync(resolve(clientBiomesDir, `${shortId}.client_biome.json`), "utf-8"));
+            const sky = content["minecraft:client_biome"].components["minecraft:sky_color"].sky_color;
+            assert.equal(
+                sky,
+                resolveBiomeTint(profileName).sky,
+                `${shortId} (${profileName}) must carry its profile's derived Beta sky colour`
+            );
+        }
+
+        for (const profile of BETA_LAND_PROFILES) {
+            const entry = resolveBiomeTint(profile);
+            assert.notEqual(entry.sky, BETA_NEUTRAL_TINT.sky, `${profile} must not fall back to the neutral sky`);
+        }
+    });
+
+    it("reserves distinct tints for the land biomes and folds terrain onto the neutral average", () => {
+        // Beta only gave the five generating biomes their own grass. Everything else is terrain and
+        // must fall back to the climate-plane average rather than growing a colour of its own.
+        const landTints = BETA_LAND_PROFILES.map(profile => resolveBiomeTint(profile).grass);
+        assert.equal(
+            new Set(landTints).size,
+            landTints.length,
+            "the five land biomes must each have their own grass colour"
+        );
+
+        for (const [shortId, profileName] of Object.entries(OVERWORLD_BIOME_PROFILE)) {
+            if (BETA_LAND_PROFILES.includes(profileName)) {
+                continue;
+            }
+            assert.equal(
+                resolveBiomeTint(profileName),
+                BETA_NEUTRAL_TINT,
+                `${shortId} (${profileName}) is terrain and must use the neutral Beta tint`
+            );
+        }
+    });
+
+    it("leaves no stray client biome override outside the table", () => {
+        if (!existsSync(clientBiomesDir)) {
+            return;
+        }
+
+        for (const file of readdirSync(clientBiomesDir).filter(f => f.endsWith(".client_biome.json"))) {
+            const content = JSON.parse(readFileSync(resolve(clientBiomesDir, file), "utf-8"));
+            const identifier = content["minecraft:client_biome"]?.description?.identifier;
+            assert.ok(
+                managed.has(identifier),
+                `${file} defines '${identifier}', which the Beta biome table does not manage`
+            );
         }
     });
 });

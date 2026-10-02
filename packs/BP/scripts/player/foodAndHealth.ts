@@ -11,13 +11,17 @@ import {
 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError } from "../core/errorReporter.js";
+import { FOOD_CONVERSIONS } from "../core/normalizer.js";
 
 interface FoodConfig {
     health: number;
     returnContainer?: string;
 }
 
-const FOOD_ITEMS: Readonly<Record<string, FoodConfig>> = Object.freeze({
+// Health is Beta gameplay and lives here; which vanilla foods become which `bh:` item is the
+// normalizer's conversion table. The membership of `FOOD_ITEMS` is derived from that table rather
+// than re-listed, so a food the sweep retypes can never be one this module forgets to feed.
+const FOOD_HEALTH: Readonly<Record<string, FoodConfig>> = Object.freeze({
     "bh:apple": { health: 4 },
     "bh:bread": { health: 5 },
     "bh:cookie": { health: 1 },
@@ -25,9 +29,28 @@ const FOOD_ITEMS: Readonly<Record<string, FoodConfig>> = Object.freeze({
     "bh:cooked_cod": { health: 5 },
     "bh:golden_apple": { health: 42 },
     "bh:porkchop": { health: 3 },
-    "bh:cooked_porkchop": { health: 8 },
+    "bh:cooked_porkchop": { health: 8 }
+});
+
+// Mushroom stew is authentic Beta but the engine consumes it natively, so it is never retyped and is
+// the one food the conversion table does not name.
+const NATIVE_FOODS: Readonly<Record<string, FoodConfig>> = Object.freeze({
     "minecraft:mushroom_stew": { health: 10, returnContainer: "minecraft:bowl" }
 });
+
+function buildFoodItems(): Record<string, FoodConfig> {
+    const items: Record<string, FoodConfig> = { ...NATIVE_FOODS };
+    for (const convertedId of Object.values(FOOD_CONVERSIONS)) {
+        const config = FOOD_HEALTH[convertedId];
+        if (!config) {
+            throw new Error(`foodAndHealth: no health configured for converted food ${convertedId}`);
+        }
+        items[convertedId] = config;
+    }
+    return items;
+}
+
+const FOOD_ITEMS: Readonly<Record<string, FoodConfig>> = Object.freeze(buildFoodItems());
 
 const CAKE_CONFIG = Object.freeze({
     blockId: "minecraft:cake",

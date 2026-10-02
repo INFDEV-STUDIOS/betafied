@@ -2,6 +2,7 @@ import { world } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { OVERWORLD_ID } from "../core/betaConstants.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 20,
@@ -18,7 +19,7 @@ export function* fogJob(): Generator<void, void, unknown> {
             const name = player.name;
             const dim = player.dimension.id;
 
-            if (dim === "minecraft:overworld") {
+            if (dim === OVERWORLD_ID) {
                 if (!hasFog.has(name)) {
                     // `/fog` is the only way to stack a custom fog: the script API exposes no fog
                     // equivalent, so this is the one place a command is the right tool.

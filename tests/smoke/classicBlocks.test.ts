@@ -248,6 +248,31 @@ describe("Classic Block Contract - Beta 1.7.3 logs, stairs and slabs", () => {
     });
 });
 
+describe("Classic Recipe Contract - Beta 1.7.3 fence", () => {
+    it("replaces vanilla's fence recipe instead of adding a parallel one", () => {
+        // Vanilla's oak fence recipe id is `minecraft:fence`. Adding a second bh: recipe beside it —
+        // which is what this recipe used to be — leaves the vanilla result craftable, and a vanilla
+        // fence never joins a bh:fence line. Overriding the id is the same fix the chest needed.
+        const recipe = readJson(resolve(root, "packs/BP/recipes/oak_fence.json"))["minecraft:recipe_shaped"];
+
+        assert.equal(
+            recipe.description.identifier,
+            "minecraft:fence",
+            "the recipe must override vanilla's id rather than sit beside it"
+        );
+        assert.equal(recipe.result.item, "bh:fence", "a crafted fence must already be the custom block");
+        assert.equal(recipe.result.count, 2, "Beta crafted two fences from six sticks");
+        assert.ok(
+            recipe.tags.includes("crafting_table"),
+            "the vanilla table has to offer the Beta result too"
+        );
+        assert.ok(
+            recipe.tags.includes("beta_crafting"),
+            "the custom crafting table serves this tag and must keep offering it"
+        );
+    });
+});
+
 describe("Classic Block Contract - custom block names", () => {
     it("translates every custom block, not just its display name", () => {
         // Since 1.19.30 minecraft:display_name shows its raw string, but surfaces that build their

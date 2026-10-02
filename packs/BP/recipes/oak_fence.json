@@ -2,9 +2,9 @@
   "format_version": "1.20.10",
   "minecraft:recipe_shaped": {
     "description": {
-      "identifier": "bh:oak_fence"
+      "identifier": "minecraft:fence"
     },
-    "tags": ["beta_crafting"],
+    "tags": ["crafting_table", "beta_crafting"],
     "pattern": [
       "SSS",
       "SSS"

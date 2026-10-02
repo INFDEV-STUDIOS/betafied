@@ -2,25 +2,13 @@ import { world, ItemStack, Entity, Block, Vector3 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { OVERWORLD_KEY } from "../core/betaConstants.js";
+import { normalizeXZ, scale } from "../core/vectorMath.js";
 
 const CONFIG = Object.freeze({
     TICK_INTERVAL: 10,
     NON_SOLID_WHITELIST: Object.freeze(["minecraft:air", "minecraft:water", "minecraft:soul_sand"])
 });
-
-function normalize(vector: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
-    const mag = Math.sqrt(vector.x ** 2 + vector.z ** 2);
-    if (mag === 0) return { x: 0, y: 0, z: 0 };
-    return { x: vector.x / mag, y: 0, z: vector.z / mag };
-}
-
-function multiply(vector: { x: number; y: number; z: number }, scalar: number): { x: number; y: number; z: number } {
-    return {
-        x: vector.x * scalar,
-        y: vector.y * scalar,
-        z: vector.z * scalar
-    };
-}
 
 function isSolidBlock(block: Block | undefined): boolean {
     const id = block?.typeId;
@@ -43,7 +31,7 @@ function breakBoatWithItem(boat: Entity): void {
 }
 
 export function boatLoopJob(): void {
-    const overworld = world.getDimension("overworld");
+    const overworld = world.getDimension(OVERWORLD_KEY);
     const boats = overworld.getEntities({ type: "minecraft:boat" });
 
     for (const boat of boats) {
@@ -81,8 +69,8 @@ export function boatLoopJob(): void {
 
             if (blockBelow?.typeId !== "minecraft:water") continue;
 
-            const dir = normalize({ x: vel.x, y: 0, z: vel.z });
-            const offset = multiply(dir, -1);
+            const dir = normalizeXZ({ x: vel.x, z: vel.z });
+            const offset = scale(dir, -1);
 
             const bubblePos = {
                 x: loc.x + offset.x,

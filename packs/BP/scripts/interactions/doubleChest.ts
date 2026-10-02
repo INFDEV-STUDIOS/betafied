@@ -29,8 +29,9 @@ import type {
 import { eventBus } from "../core/eventBus.js";
 import { reportError, runCatching } from "../core/errorReporter.js";
 import { tickManager } from "../core/tickManager.js";
+import { BH_CHEST_ID } from "../core/betaRegistry.js";
 
-export const SINGLE_CHEST_ID = "bh:chest";
+export const SINGLE_CHEST_ID = BH_CHEST_ID;
 export const DOUBLE_CHEST_ID = "bh:double_chest";
 export const SINGLE_CHEST_SLOTS = 27;
 export const DOUBLE_CHEST_SLOTS = 54;

@@ -2,6 +2,107 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.2 — 2026-10-02
+
+5.2 is the release where the pack stopped describing Beta and started showing it. The Overworld now
+carries Beta's own sky, clouds, sun, block-break crack and pumpkin overlay, and every biome tints its
+grass and foliage the way Beta's climate map did — the brown water and washed-out greens of a modern
+Bedrock frame replaced by the warmer palette the era actually drew. Underneath the art is a quieter
+change that touches most of the tree: the three tables that each claimed to know what Beta was — the
+registry, the normalizer and the compatibility policy — have been collapsed onto one owner each, so
+the rule a test asserts is now the rule the game runs.
+
+### Sky and biome colour
+
+Beta's environment is temperature-driven. `World.getSkyColor` samples the climate at the player and
+hands it to `BiomeGenBase.getSkyColorByTemp`, and grass and foliage are drawn through the colormaps
+modulated by the biome's own tint. New terrain now renders the same way.
+
+- Beta's grass colormap ships as `textures/colormap/grass.png`, the era's own `grasscolor.png` rather
+  than the modern one Bedrock loads. It is close to what Bedrock already had, so the swap is quiet on
+  its own; where it matters is the biome tint multiplied over it.
+- Every Overworld biome is emitted as a client biome with a derived `grass_appearance`,
+  `foliage_appearance` and `sky_color`, so forest, plains, desert, taiga and swampland each read as
+  themselves instead of collapsing onto one global green. The derivation lives in
+  `scripts/derive-biome-colors.mjs`, which samples Beta's own climate and colormap math, and the 84
+  `packs/RP/biomes/*.client_biome.json` files are generated from it — `npm run generate:client-biomes`
+  and a smoke test keep the two from drifting apart.
+- The sky colour is Beta's formula and not a constant. `betaColorizer.betaSkyColor` reproduces
+  `Color.HSBtoRGB(0.62222224 - t * 0.05, 0.5 + t * 0.1, 1.0)` with the same per-step rounding Java
+  used, so a warm biome is tinted and a cold one is not.
+- Beta's environment art replaces the modern set: `environment/clouds.png` (the era's crisp layered
+  cloud slab), `environment/sun.png`, the block-break crack drawn from ten `destroy_stage_*` tiles
+  extracted from Beta's terrain atlas, and `misc/pumpkinblur.png`. Bedrock only understands a 4x2
+  moon sheet, so the single Beta moon is repeated across all eight frames rather than shipping the
+  phases the era never had. `tests/smoke/skyTextures.test.ts` pins each path and shape.
+
+### One owner per fact
+
+The failure this release is built to prevent is a rule written in one file, its behaviour living in
+another, and a test in a third asserting the rule instead of the code path — green in CI while the
+game did something else. The three parallel Beta tables are now one owner each.
+
+- `compatibilityPolicy` is reduced to exactly its name: world-block replacement. Its duplicate entity
+  allowlist, banned-drop set, ore table and item-conversion table are deleted, because each restated
+  a table in `betaRegistry` or `normalizer` and had drifted from it — the entity list was missing
+  `oak_boat` and the banned set held only `rotten_flesh`, so it agreed with the spawn handler on
+  nothing but the common case.
+- `betaRegistry` now owns the shared vocabulary the subsystems used to re-list: the passive, hostile
+  and pigman entity sets; the sword and pickaxe tiers; the wood-species groups; and Beta's wool
+  palette, which feeds the block allowlist, the sheep drop and the sword bonus from one place.
+- Beta constants are one module. `betaConstants.ts` owns the dimension identifiers, the short
+  `getDimension` keys and the vertical bounds, and `runtimeSmoke` now fails the build if a
+  `getDimension` call is handed a `_ID` constant — the mistake that silently matched nothing.
+- `equipmentSlots.ts` and `vectorMath.ts` collect the armor slot list and the boat/minecart vector
+  helpers the two vehicle subsystems had each copied and let diverge.
+- `FOOD_CONVERSIONS` moved into `normalizer` and `FOOD_ITEMS` membership is derived from it, so a food
+  the sweep retypes can never be one the health module forgot to feed; it throws at load rather than
+  dropping a conversion on the floor. `resolveDropId` collapses the drop path onto one function, so a
+  ground item lands on the id the inventory stacks it into.
+- `BETA_POLICY_GAPS.md` records the places where a declared rule and the shipped behaviour still
+  disagree, with the evidence for each. None of them is new; they were invisible while a test
+  asserted the declaration rather than the behaviour.
+
+### World generation
+
+- Emerald and copper ores are suppressed at generation. Beta had no emerald (1.3) and no copper
+  (1.17), but both still generate on modern terrain, so `emerald_ore_feature`, `copper_ore_feature`
+  and `dripstone_caves_copper_ore_feature` are shipped as inert stubs. The scrubber's guaranteed net
+  changed with them: an emerald vein in already-generated ground is now repainted to stone rather
+  than erased to air, which had been punching ore-shaped holes through the rock.
+- Vines and glow lichen are stubbed the same way, following the fallen-tree pattern, and the old
+  `vine_feature.json` stub — whose identifier did not match a real vanilla feature, so it suppressed
+  nothing — is gone.
+- The bedrock floor keeps its three-block cap but no longer flattens. The height distribution was
+  retuned so the top layer is common instead of rare, which reads as a ragged floor rather than the
+  wide plateaus the old math left.
+
+### Other fixes
+
+- Sheep drops match Beta again. The shearing table returned 2-4 wool where Beta's `1 + rand.nextInt(3)`
+  is 1-3, and the punch path already used the correct range, so both now resolve from one pair of
+  bounds a test pins. A killed sheep's wool also carries its colour now, via the
+  `set_data_from_color_index` function the death table was missing.
+- The zombie's feather drop is owned by its loot table alone; the script no longer spawns a second
+  stack on top of it.
+- The oak fence recipe overrides vanilla's own `minecraft:fence` identifier rather than adding a
+  second `bh:` recipe, so a crafted fence is already the custom block and carries the `crafting_table`
+  tag. Fence connectivity also reports an unloaded neighbour instead of swallowing the error and
+  leaving a stale connection mask.
+- Netherite and turtle helmets no longer score armor points. They are not authentic Beta gear, and
+  the registry strips them; the armor table's suffix heuristic now stops at the vanilla namespace so
+  the two systems agree.
+- The sword's fast-break set drops the legacy ids (`web`, `leaves`, `wooden_stairs`, `wool`) that
+  never resolve on this engine and takes its wool palette from the registry, which is the owner the
+  shears and the animal AI already read.
+- Slab, stair and log placement normalization is removed from the interaction guards. Every plank,
+  log, stair, slab and fence a player can hold is retyped to its `bh:` equivalent on pickup, so the
+  custom blocks carried no such post-placement repair to apply; the guard is now the single place
+  that has to grow if a vanilla block ever becomes reachable again.
+- Deploying a fresh server no longer leaves content logging off. `push.mjs` upserts the logging keys
+  in `server.properties` instead of repairing only the literal `=false` form, which did nothing when
+  the key was absent altogether — exactly what a new `server.properties` ships.
+
 ## 5.1 — 2026-10-01
 
 5.1 is the cleanup that follows 5.0. It closes the gaps the terrain rewrite left open: the foliage

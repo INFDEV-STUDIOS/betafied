@@ -28,7 +28,7 @@ describe("Main Integration Harness - Bedrock Server Script Loading", () => {
         );
         assert.ok(
             registeredAfterEvents.has("entityDie"),
-            "Expected entityDie listener for legacy feather drops"
+            "Expected entityDie listener for player-death tracking"
         );
         assert.ok(
             registeredBeforeEvents.has("playerInteractWithBlock"),

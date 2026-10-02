@@ -2,6 +2,8 @@ import { world, system, Dimension, Entity, Vector3, EntityComponentTypes } from 
 import { eventBus } from "../core/eventBus.js";
 import { tickManager } from "../core/tickManager.js";
 import { reportError } from "../core/errorReporter.js";
+import { END_KEY, NETHER_KEY, OVERWORLD_KEY } from "../core/betaConstants.js";
+import { magnitude, normalizeXZ, scale } from "../core/vectorMath.js";
 
 const CONFIG = Object.freeze({
     FURNACE_TYPE_ID: "ubd:furnace_minecart",
@@ -22,7 +24,7 @@ const PUSHABLE_CART_TYPES = Object.freeze(new Set([
 
 const activeIntervals = new Map<string, number>();
 
-const DIMENSION_IDS = Object.freeze(["overworld", "nether", "the_end"] as const);
+const DIMENSION_IDS = Object.freeze([OVERWORLD_KEY, NETHER_KEY, END_KEY] as const);
 
 function getAvailableDimensions(): Dimension[] {
     const resolved: Dimension[] = [];
@@ -39,27 +41,6 @@ function getAvailableDimensions(): Dimension[] {
     }
     return resolved;
 }
-
-const VectorMath = {
-    normalizeXZ(v: { x: number; y?: number; z: number }): Vector3 {
-        const magnitude = Math.sqrt(v.x ** 2 + v.z ** 2);
-        return magnitude === 0 ? { x: 0, y: 0, z: 0 } : {
-            x: v.x / magnitude,
-            y: 0,
-            z: v.z / magnitude
-        };
-    },
-    scale(v: Vector3, scalar: number): Vector3 {
-        return {
-            x: v.x * scalar,
-            y: v.y * scalar,
-            z: v.z * scalar
-        };
-    },
-    magnitude(v: Vector3): number {
-        return Math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2);
-    }
-};
 
 function isValidFuelTime(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value) && value >= 0;
@@ -191,11 +172,11 @@ function pushNearbyCarts(furnaceCart: Entity): boolean {
         }).filter((target) => PUSHABLE_CART_TYPES.has(target.typeId) && target.id !== furnaceCart.id);
 
         for (const nearbyCart of nearbyEntities) {
-            const dir = VectorMath.normalizeXZ({
+            const dir = normalizeXZ({
                 x: nearbyCart.location.x - furnaceCart.location.x,
                 z: nearbyCart.location.z - furnaceCart.location.z
             });
-            const pushVector = VectorMath.scale(dir, CONFIG.IMPULSE_FORCE);
+            const pushVector = scale(dir, CONFIG.IMPULSE_FORCE);
             nearbyCart.applyImpulse(pushVector);
             pushedCart = true;
         }
@@ -216,7 +197,7 @@ function applyMovementImpulse(entity: Entity, movementDir: Vector3, onRail: bool
     }
 
     const currentVelocity = entity.getVelocity();
-    const currentSpeed = VectorMath.magnitude(currentVelocity);
+    const currentSpeed = magnitude(currentVelocity);
 
     const hasMovement = Math.abs(movementDir.x) > 0.01 || Math.abs(movementDir.z) > 0.01;
     if (!hasMovement && currentSpeed >= CONFIG.MIN_SPEED_THRESHOLD) {
@@ -225,7 +206,7 @@ function applyMovementImpulse(entity: Entity, movementDir: Vector3, onRail: bool
 
     const hitCart = pushNearbyCarts(entity);
     const impulseMultiplier = (currentSpeed < CONFIG.MIN_SPEED_THRESHOLD && !hitCart) ? -1 : 1;
-    const impulse = VectorMath.scale(VectorMath.scale(movementDir, impulseMultiplier), CONFIG.IMPULSE_FORCE);
+    const impulse = scale(scale(movementDir, impulseMultiplier), CONFIG.IMPULSE_FORCE);
 
     entity.applyImpulse(impulse);
 }
@@ -265,7 +246,7 @@ function runMinecartStep(entity: Entity, entityId: string): void {
 
     const currentPos = entity.location;
     const lastPos = FurnaceState.getLastPosition(entity);
-    const movementDir = VectorMath.normalizeXZ({
+    const movementDir = normalizeXZ({
         x: currentPos.x - lastPos.x,
         z: currentPos.z - lastPos.z
     });

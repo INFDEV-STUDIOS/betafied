@@ -1,0 +1,19 @@
+{
+  "format_version": "1.26.0",
+  "minecraft:client_biome": {
+    "description": {
+      "identifier": "minecraft:redwood_taiga_mutated"
+    },
+    "components": {
+      "minecraft:grass_appearance": {
+        "color": "#86B978"
+      },
+      "minecraft:foliage_appearance": {
+        "color": "#68A756"
+      },
+      "minecraft:sky_color": {
+        "sky_color": "#7CA4FF"
+      }
+    }
+  }
+}

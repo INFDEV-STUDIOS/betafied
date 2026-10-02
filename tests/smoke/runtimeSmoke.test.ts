@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 
 describe("Bedrock Runtime Smoke Suite - Manifest & Entrypoint Integrity", () => {
     const root = process.cwd();
@@ -42,41 +42,65 @@ describe("Bedrock Runtime Smoke Suite - Manifest & Entrypoint Integrity", () => 
         assert.ok(existsSync(mainScriptPath), "packs/BP/scripts/main.ts must exist on disk");
     });
 
-    it("verifies all referenced submodules exist", () => {
-        const submodules = [
-            "packs/BP/scripts/core/inventoryManager.ts",
-            "packs/BP/scripts/core/compatibilityPolicy.ts",
-            "packs/BP/scripts/core/permissions.ts",
-            "packs/BP/scripts/core/errorReporter.ts",
-            "packs/BP/scripts/player/achievements.ts",
-            "packs/BP/scripts/player/welcome.ts",
-            "packs/BP/scripts/player/foodAndHealth.ts",
-            "packs/BP/scripts/player/playerState.ts",
-            "packs/BP/scripts/combat/armor.ts",
-            "packs/BP/scripts/combat/machineGunBow.ts",
-            "packs/BP/scripts/interactions/redstoneMining.ts",
-            "packs/BP/scripts/interactions/swordMining.ts",
-            "packs/BP/scripts/interactions/boatCollision.ts",
-            "packs/BP/scripts/interactions/furnaceMinecart.ts",
-            "packs/BP/scripts/interactions/instantBonemeal.ts",
-            "packs/BP/scripts/interactions/placement.ts",
-            "packs/BP/scripts/interactions/fenceConnectivity.ts",
-            "packs/BP/scripts/world/buildHeightLimit.ts",
-            "packs/BP/scripts/world/chunkScrubber.ts",
-            "packs/BP/scripts/world/dimensionBoundary.ts",
-            "packs/BP/scripts/world/classicFog.ts",
-            "packs/BP/scripts/world/island.ts",
-            "packs/BP/scripts/world/netherIce.ts",
-            "packs/BP/scripts/world/worldBorder.ts",
-            "packs/BP/scripts/mobs/betaAnimalAI.ts",
-            "packs/BP/scripts/mobs/entityCleaner.ts",
-            "packs/BP/scripts/mobs/entitySpawnHandler.ts",
-            "packs/BP/scripts/mobs/nightmares.ts",
-            "packs/BP/scripts/mobs/pigmanEquipment.ts"
-        ];
+    it("looks dimensions up by the short keys the API documents", () => {
+        // `Dimension.id` is the `minecraft:`-prefixed identifier, but `world.getDimension` is
+        // documented against the short keys ("overworld", "nether", "the_end") and rejects some
+        // prefixed forms outright. Passing an id constant here is the regression this pins.
+        const scriptsDir = resolve(root, "packs/BP/scripts");
+        const offenders: string[] = [];
 
-        for (const mod of submodules) {
-            assert.ok(existsSync(resolve(root, mod)), `Submodule ${mod} must exist on disk`);
+        for (const file of readdirSync(scriptsDir, { recursive: true }).map(String).filter(f => f.endsWith(".ts"))) {
+            const source = readFileSync(resolve(scriptsDir, file), "utf-8");
+            for (const match of source.matchAll(/getDimension\(\s*([A-Z_][A-Z0-9_]*)\s*\)/g)) {
+                if (match[1].endsWith("_ID")) {
+                    offenders.push(`${file} -> ${match[1]}`);
+                }
+            }
         }
+
+        assert.deepEqual(offenders, [], `world.getDimension must take a short key, not a Dimension.id: ${offenders.join(", ")}`);
+    });
+
+    it("reaches every script module from main.ts so the transpiler emits it", () => {
+        // ts_transpiler only emits files imported directly or indirectly from main.ts, so a module
+        // that nothing imports is silently dropped from the built pack rather than failing a build.
+        const scriptsDir = resolve(root, "packs/BP/scripts");
+
+        const scriptFiles = (): string[] =>
+            readdirSync(scriptsDir, { recursive: true })
+                .map(String)
+                .filter(file => file.endsWith(".ts") && !file.endsWith(".d.ts"))
+                .map(file => resolve(scriptsDir, file));
+
+        // Imports in the pack always carry the emitted .js extension while the sources are .ts, so
+        // the specifier is rewritten rather than looked up verbatim.
+        const relativeImportsOf = (file: string): string[] => {
+            const source = readFileSync(file, "utf-8");
+            const specifiers = [
+                ...source.matchAll(/from\s+["']([^"']+)["']/g),
+                ...source.matchAll(/^\s*import\s+["']([^"']+)["']/gm)
+            ].map(match => match[1]);
+            return specifiers.filter(specifier => specifier.startsWith("."));
+        };
+
+        const entry = resolve(scriptsDir, "main.ts");
+        const reachable = new Set<string>([entry]);
+        const queue = [entry];
+
+        while (queue.length > 0) {
+            const file = queue.pop() as string;
+            for (const specifier of relativeImportsOf(file)) {
+                const target = resolve(dirname(file), specifier).replace(/\.js$/, ".ts");
+                if (!existsSync(target) || reachable.has(target)) continue;
+                reachable.add(target);
+                queue.push(target);
+            }
+        }
+
+        const orphaned = scriptFiles()
+            .filter(file => !reachable.has(file))
+            .map(file => relative(root, file));
+
+        assert.deepEqual(orphaned, [], `Unreferenced modules will be dropped from the build: ${orphaned.join(", ")}`);
     });
 });

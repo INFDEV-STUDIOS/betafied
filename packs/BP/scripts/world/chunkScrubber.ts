@@ -4,6 +4,7 @@ import { BETA_BLOCK_IDS } from "../core/betaRegistry.js";
 import { BLOCK_BULK_REPLACEMENTS, BLOCK_FINE_REPLACEMENTS } from "../core/compatibilityPolicy.js";
 import { normalizeBlock } from "../core/normalizer.js";
 import { tickManager } from "../core/tickManager.js";
+import { BETA_FLOOR_Y, OVERWORLD_ID } from "../core/betaConstants.js";
 
 const SCRUBBED_AT = new Map<string, number>();
 const MAX_TRACKED_CHUNKS = 8192;
@@ -42,9 +43,7 @@ const CHUNK_SIZE = 16;
 // ten times a minute, forever, which is what the profiler showed dominating the server tick.
 const REVERIFY_INTERVAL_TICKS = 2400;
 
-const OVERWORLD_ID = "minecraft:overworld";
-const BETA_FLOOR_Y = 0;
-const BETA_FLOOR_LAYERS = 3;
+const BETA_FLOOR_LAYERS = 2;
 
 // The highest Y the floor generator may write. Anything above it is a floor written by an older
 // build and is cleared back to air.
@@ -194,17 +193,16 @@ function floorNoise(cx: number, cz: number, gx: number, gz: number): number {
 }
 
 /**
- * Buckets the noise into a mostly-flat floor with scattered raised bedrock.
+ * Buckets the noise into the three-block floor: the Y=0 base always stands, and the two layers above
+ * it are split so the top is common rather than rare.
  *
- * The skew matters more than the curve: vanilla's own floor is a solid layer with roughly half its
- * columns carrying a second block and only a scattering above that, so an even split would average
- * two blocks per column and read as a pile rather than a surface.
+ * The shape is churn, not coverage. Vanilla's own taller floor leaves over half its columns flat, and
+ * reused here that reads as wide plateaus at a three-block cap; this distribution keeps the floor
+ * ragged across its whole footprint instead.
  */
 function floorHeight(noise: number): number {
-    if (noise < 0.45) return 0;
-    if (noise < 0.8) return 1;
-    if (noise < 0.95) return 2;
-    return BETA_FLOOR_LAYERS;
+    if (noise < 0.3) return 0;
+    return noise < 0.72 ? 1 : BETA_FLOOR_LAYERS;
 }
 
 /**
