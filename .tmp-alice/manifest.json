@@ -1,0 +1,17 @@
+{
+  "format_version": 1,
+  "header": {
+    "description": "Tiny Shader.\nBased on Cracko298's MC3DS Shader named \"MFRTX\"\nMade by MoonAlice64/alice64seq",
+    "name": "Alice Shader",
+    "uuid": "2bf326a6-3a68-49a0-8f3d-c9ad1c0a2017",
+    "version": [0, 1, 0],
+    "min_engine_version": [1, 1, 0]
+  },
+  "modules": [
+    {
+      "type": "resources",
+      "uuid": "126b3ce8-b522-4081-9079-f96d93ba2017",
+      "version": [0, 1, 0]
+    }
+  ]
+}
