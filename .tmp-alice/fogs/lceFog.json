@@ -1,0 +1,46 @@
+{
+  "format_version": "1.21.90",
+  "minecraft:fog_settings": {
+    "description": {
+      "identifier": "lce:fog_settings"
+    },
+    "distance": {
+      "air": {
+        "fog_start": 0.3,
+        "fog_end": 1.3,
+        "fog_color": "#C0D8FF",
+        "render_distance_type": "render"
+      },
+      "weather": {
+        "fog_start": 0.3,
+        "fog_end": 1.3,
+        "fog_color": "#939FBF",
+        "render_distance_type": "render"
+      },
+      "water": {
+        "fog_start": 0.1,
+        "fog_end": 1.0,
+        "fog_color": "#80D0FF",
+        "render_distance_type": "render"
+      },
+      "lava": {
+        "fog_start": 0.3,
+        "fog_end": 1.3,
+        "fog_color": "#C55000",
+        "render_distance_type": "render"
+      },
+      "lava_resistance": {
+        "fog_start": 0.3,
+        "fog_end": 1.3,
+        "fog_color": "#C55000",
+        "render_distance_type": "render"
+      },
+      "powder_snow": {
+        "fog_start": 0.1,
+        "fog_end": 1.0,
+        "fog_color": "#E1E1E1",
+        "render_distance_type": "render"
+      }
+    }
+  }
+}
