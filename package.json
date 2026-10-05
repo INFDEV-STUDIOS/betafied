@@ -10,6 +10,7 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "build": "scripts/regolith.sh run",
     "push": "node scripts/push.mjs",
+    "release": "node scripts/release.mjs",
     "wipe-nether": "node scripts/wipeNether.mjs",
     "watch": "node scripts/watch.mjs",
     "watch:regolith": "scripts/regolith.sh watch",
