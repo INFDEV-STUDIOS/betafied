@@ -7,10 +7,12 @@ export interface NormalizationResult {
     readonly targetId?: string;
 }
 
+// Copper is deliberately absent: Beta had no copper at all, so a raw copper pickup falls through
+// to `normalizeItem` and lands on cobblestone like every other copper item — one owner for both
+// the ground and inventory paths.
 const ORE_DROP_CONVERSIONS: Readonly<Record<string, string>> = Object.freeze({
     "minecraft:raw_iron": "minecraft:iron_ore",
-    "minecraft:raw_gold": "minecraft:gold_ore",
-    "minecraft:raw_copper": "minecraft:iron_ore"
+    "minecraft:raw_gold": "minecraft:gold_ore"
 });
 
 export function normalizeEntityDrop(itemId: string): NormalizationResult {

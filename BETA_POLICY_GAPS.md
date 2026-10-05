@@ -43,14 +43,12 @@ had no stone bricks), while the deleted table claimed `stone_bricks → minecraf
 kept the removal, since the scrubber's job is to erase blocks the era never had. Worth confirming
 that deleting a player's stone bricks is the intent rather than converting them to stone.
 
-## 3. `raw_copper` resolves differently on the ground and in the inventory
+## 3. Resolved: `raw_copper` lands on cobblestone on both paths
 
-- `normalizeEntityDrop("minecraft:raw_copper")` → `minecraft:iron_ore` (the ore-block stance)
-- `normalizeItem("minecraft:raw_copper")` → `minecraft:cobblestone` (the item stance)
-
-`resolveDropId` takes the first path, so a copper pickup becomes an iron ore block. The second path
-only matters if a raw copper stack reaches an inventory some other way. Pick one target if the split
-is not deliberate.
+The ore-drop special case used to send `normalizeEntityDrop("minecraft:raw_copper")` to
+`minecraft:iron_ore` while `normalizeItem` answered `minecraft:cobblestone`. Copper is now absent
+from `ORE_DROP_CONVERSIONS`, so a ground pickup falls through to `normalizeItem` like any other
+post-Beta item — both paths reach cobblestone through one owner.
 
 ## 4. Resolved: vanilla fences are moved onto `bh:fence`
 
@@ -123,13 +121,33 @@ terrain. Two mechanisms now cover that, deliberately at different layers:
 - **Scrubber (the guaranteed net):** `BLOCK_BULK_REPLACEMENTS` maps `emerald_ore` and
   `deepslate_emerald_ore` to `minecraft:stone`. The old table sent `emerald_ore` through
   `normalizeBlock`, which had no entry for it and defaulted to `remove` — every emerald vein in
-  already-generated ground was being scrubbed to **air**, punching ore-shaped holes in terrain.
+  already-generated ground was being scrubbed to **air**, punching ore-shaped holes in terrain.Still engine-dependent: whether a behavior pack's ore-feature stub actually pre-empts vanilla's ore feature rule has to be confirmed in-game, the same caveat the vine/lichen stubs carry. If it does not, the scrubber mapping above is what keeps the world correct.
 
-Still engine-dependent: whether a behavior pack's ore-feature stub actually pre-empts vanilla's
-ore feature rule has to be confirmed in-game, the same caveat the vine/lichen stubs carry. If it does
-not, the scrubber mapping above is what keeps the world correct. Retuning *where* the surviving Beta
-ores generate (their Y-ranges and vein counts still match modern, not Beta) would mean overriding the
-vanilla ore feature *rules*, which nothing here does yet.
+**Retuned (needs an in-game look).** Vanilla spreads each surviving Beta ore across several modern
+split rules, so overriding one file would only move part of the density. The pack now owns both
+halves:
+
+- `feature_rules/` carries one override per vanilla rule identifier — the primary rule for coal,
+  iron, gold, redstone, diamond and lapis keeps its `minecraft:` identifier and scatters a new
+  `bh:beta_*_ore_feature` with Beta's per-chunk attempt count and height band; the 14 split
+  variants (upper/lower/middle/small/buried/large/square, plus the mesa and mountains specials)
+  are neutered with a biome filter on a tag no biome carries, so nothing double-fires on top of
+  Beta's counts.
+- The six `features/beta_*_ore_feature.json` files set Beta's vein sizes and only replace the
+  stone family, so a vein never eats surface blocks. The numbers: coal 20 attempts × 16 blocks,
+  y 0–128; iron 20 × 8, y 0–64; gold 2 × 8, y 0–32; redstone 8 × 7, y 0–16; diamond 1 × 7,
+  y 0–16; lapis 1 × 6, scattered as a triangle over y 0–32 so it clusters around y16 the way
+  Beta's did. Y-bands are half-open and match Java's `nextInt(max - min) + min` exactly.
+  The height bands and the redstone-8/diamond-1 attempt counts are verified against the
+  pre-Caves-&-Cliffs distribution tables; the 7/7/6 vein sizes for redstone, diamond and lapis
+  are the classic pre-1.8 figures and are the least certain entry here — confirm them in-game.
+
+Three things to confirm in-game, in order of blast radius: (1) that a pack file overriding a
+vanilla feature *rule* by identifier actually replaces it (the recipe and feature stubs rely on
+the same mechanism, but no rule override has been proven yet); (2) that no modern variant rule
+outside the 14 listed in `tests/smoke/fallenTrees.test.ts` still fires — the `/place` command's
+rule list is where those identifiers came from; (3) that the triangle scatter lands lapis's peak
+where intended.
 
 ## Why this file exists
 

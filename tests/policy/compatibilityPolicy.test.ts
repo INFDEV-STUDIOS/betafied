@@ -194,6 +194,6 @@ describe("Entity compatibility predicates", () => {
     it("agrees with the drop normalizer on ore drops", () => {
         assert.deepEqual(normalizeEntityDrop("minecraft:raw_iron"), { action: "convert", targetId: "minecraft:iron_ore" });
         assert.deepEqual(normalizeEntityDrop("minecraft:raw_gold"), { action: "convert", targetId: "minecraft:gold_ore" });
-        assert.deepEqual(normalizeEntityDrop("minecraft:raw_copper"), { action: "convert", targetId: "minecraft:iron_ore" });
+        assert.deepEqual(normalizeEntityDrop("minecraft:raw_copper"), { action: "convert", targetId: "minecraft:cobblestone" });
     });
 });
