@@ -123,7 +123,11 @@ describe("Heuristic Inverse Normalizer", () => {
         it("converts raw ore item drops back to authentic mined ore blocks", () => {
             assert.deepEqual(normalizeEntityDrop("minecraft:raw_iron"), { action: "convert", targetId: "minecraft:iron_ore" });
             assert.deepEqual(normalizeEntityDrop("minecraft:raw_gold"), { action: "convert", targetId: "minecraft:gold_ore" });
-            assert.deepEqual(normalizeEntityDrop("minecraft:raw_copper"), { action: "convert", targetId: "minecraft:iron_ore" });
+        });
+
+        it("sends raw copper to the same cobblestone target the inventory path uses", () => {
+            assert.deepEqual(normalizeEntityDrop("minecraft:raw_copper"), { action: "convert", targetId: "minecraft:cobblestone" });
+            assert.deepEqual(normalizeItem("minecraft:raw_copper"), { action: "convert", targetId: "minecraft:cobblestone" });
         });
 
         it("removes post-Beta monster and animal drops", () => {

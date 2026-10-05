@@ -1,0 +1,21 @@
+{
+  "format_version": "1.13.0",
+  "minecraft:ore_feature": {
+    "description": {
+      "identifier": "bh:beta_lapis_ore_feature"
+    },
+    "count": 6,
+    "replace_rules": [
+      {
+        "places_block": "minecraft:lapis_ore",
+        "may_replace": [
+          "minecraft:stone",
+          "minecraft:granite",
+          "minecraft:diorite",
+          "minecraft:andesite",
+          "minecraft:deepslate"
+        ]
+      }
+    ]
+  }
+}

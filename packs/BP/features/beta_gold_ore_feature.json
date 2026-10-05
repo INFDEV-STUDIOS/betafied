@@ -1,0 +1,21 @@
+{
+  "format_version": "1.13.0",
+  "minecraft:ore_feature": {
+    "description": {
+      "identifier": "bh:beta_gold_ore_feature"
+    },
+    "count": 8,
+    "replace_rules": [
+      {
+        "places_block": "minecraft:gold_ore",
+        "may_replace": [
+          "minecraft:stone",
+          "minecraft:granite",
+          "minecraft:diorite",
+          "minecraft:andesite",
+          "minecraft:deepslate"
+        ]
+      }
+    ]
+  }
+}
