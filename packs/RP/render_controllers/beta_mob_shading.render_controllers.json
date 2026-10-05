@@ -1,0 +1,164 @@
+{
+  "format_version": "1.8.0",
+  "render_controllers": {
+    "controller.render.bat": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.chicken": {
+      "geometry": "geometry.default",
+      "materials": [
+        { "*": "Material.default" },
+        { "leg*": "Material.legs" }
+      ],
+      "textures": [ "texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.cow": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.creeper": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": {
+        "r": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "g": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "b": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "a": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? -1.0 : 0.35 + query.swell_amount * 0.45"
+      },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": {
+        "r": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "g": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "b": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? 0.0 : 1.0",
+        "a": "((variable.flash == 0.0) || (query.swelling_dir < 0.0)) ? -1.0 : 0.35 + query.swell_amount * 0.45"
+      }
+    },
+    "controller.render.ghast": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [ "Texture.default", "Texture.shooting" ]
+        }
+      },
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Array.skins[variable.ischarging]" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.pig": {
+      "arrays": {
+        "textures": {
+          "Array.skins": [ "Texture.default", "Texture.saddled" ]
+        }
+      },
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Array.skins[query.is_saddled]" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.sheep": {
+      "arrays": {
+        "geometries": {
+          "Array.geos": [ "Geometry.default", "Geometry.sheared" ]
+        }
+      },
+      "geometry": "Array.geos[query.is_sheared]",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-0.75" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-0.75" }
+    },
+    "controller.render.skeleton": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.slime": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.slime_armor": {
+      "geometry": "Geometry.armor",
+      "materials": [ { "*": "Material.outer" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.spider": {
+      "arrays": {
+        "materials": {
+          "Array.materials": [ "Material.default", "Material.invisible" ]
+        }
+      },
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Array.materials[query.is_invisible]" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.squid": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.zombie": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    },
+    "controller.render.zombie_pigman": {
+      "geometry": "Geometry.default",
+      "materials": [ { "*": "Material.default" } ],
+      "textures": [ "Texture.default" ],
+      "light_color_multiplier": "0.8",
+      "overlay_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" },
+      "is_hurt_color": { "r": "1.8", "g": "0.0", "b": "0.0", "a": "0.25" },
+      "on_fire_color": { "r": "0.0", "g": "0.0", "b": "0.0", "a": "-1.0" }
+    }
+  }
+}

@@ -14,7 +14,10 @@
             },
             "scripts": {
                 "scale": "1.0"
-            }
+            },
+            "render_controllers": [
+                "controller.render.bat"
+            ]
         }
     }
 }
