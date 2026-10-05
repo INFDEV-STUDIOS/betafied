@@ -77,4 +77,6 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `npm run build`: Executes the Regolith compiler build.
 - `npm run watch`: Watches for local changes and rebuilds.
 - `npm run generate:biomes`: Regenerates every biome JSON from `scripts/lib/betaBiomes.mjs`, the single source of truth for the Beta biome table.
+- `npm run push`: Builds and uploads the packs to the hosted server over SFTP.
+- `npm run release`: Creates or updates the GitHub release for the version in `package.json`, titling it `Betafied <version>` with notes taken from the [CHANGELOG.md](CHANGELOG.md) entry and the built `build/<version>/` pack assets attached. Pass `--dry-run` to print the notes without touching GitHub.
 - `npm run wipe-nether`: Filters already-generated Nether chunks out of a live world's LevelDB over SFTP. See [SECURITY.md](SECURITY.md) for the credentials it needs.

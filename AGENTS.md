@@ -127,6 +127,11 @@ betafied/
   ```bash
   npm run watch
   ```
+- **Publish or refresh the GitHub release** (title and notes from the tracked changelog, built assets attached):
+  ```bash
+  npm run release
+  npm run release -- --dry-run
+  ```
 
 ---
 
