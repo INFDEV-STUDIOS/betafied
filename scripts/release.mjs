@@ -7,11 +7,12 @@ import { extractChangelogSection, releaseVersionFrom } from "./lib/changelog.mjs
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// The checkout carries several remotes (origin, fork, upstream), and without an explicit
-// repository `gh` picks whichever one it resolves first — for this tree that was the
-// archived upstream, not the org repo releases publish to. Pin it so the release always
-// lands in one place; GH_REPO still wins because it is read by the gh CLI itself.
-const REPO = process.env.GH_REPO ?? "Betafied-Bedrock/betafied-addon";
+// The checkout carries several remotes (origin, fork, upstream) whose slugs include orgs
+// this project has outgrown or renamed away from — GitHub still resolves the old names by
+// redirect, which makes a stray remote look like a different repository. Pin the canonical
+// name so `gh` cannot resolve a remote to the wrong target; GH_REPO wins because the CLI
+// reads it itself.
+const REPO = process.env.GH_REPO ?? "INFDEV-STUDIOS/betafied";
 
 const BANNER =
   "> **Note:** **Betafied** brings Minecraft Beta 1.7.3 to Bedrock Edition. When playing on the " +
