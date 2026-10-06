@@ -23,6 +23,9 @@
             "minecraft:block_placer": {
                 "block": "bh:oak_log",
                 "replace_block_item": true
+            },
+            "minecraft:fuel": {
+                "duration": 15.0
             }
         }
     }

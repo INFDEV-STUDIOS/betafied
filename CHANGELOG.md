@@ -2,6 +2,58 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.3 — 2026-10-06
+
+5.3 is a fix-up release: the ores that were retuned after 5.2 landed on the pack's own generation
+rules, a handful of quietly wrong behaviours are corrected, and the world border is gone. The
+headline for survival play is that charcoal exists again — it had been unreachable since the log
+rework.
+
+### Charcoal and fuel
+
+The log rework retyped every log a player holds into a custom `bh:` item, and vanilla's furnace
+recipes — which take the vanilla log item as input — stopped matching anything. Charcoal was
+therefore unobtainable, and nobody noticed, which is exactly the kind of failure this release is
+for.
+
+- Each Beta log now smelts into charcoal through its own furnace recipe, matching the input the
+  player actually holds. Charcoal carries vanilla's `minecraft:coals` tag natively, so torches,
+  campfires and the furnace itself accept it without further content.
+- Logs are furnace fuel again. The custom log items carry the fuel component at Beta's 15-second
+  burn, which tags alone never granted.
+- The furnace minecart burns charcoal the way Beta's burned coal: the interaction filter and its
+  script guard accept either item at the same 1600 ticks of fuel.
+
+### Ore generation
+
+- Vanilla's primary ore feature rules for coal, iron, gold, redstone, diamond and lapis keep their
+  identifiers but now scatter the pack's own features, carrying Beta's per-chunk attempt counts,
+  height bands and vein sizes into the stone family only. The fourteen modern split variants —
+  upper, lower, buried, large, square and the mesa and mountains specials — are neutered behind a
+  biome tag no biome carries, so nothing double-fires on top of Beta's counts. Whether an override
+  by identifier actually pre-empts vanilla's rule still needs the in-game look recorded in
+  `BETA_POLICY_GAPS.md`, and so do the pre-1.8 redstone, diamond and lapis vein figures.
+- A ground drop of raw copper lands on cobblestone through the same rule the inventory sweep uses,
+  instead of being special-cased into iron ore. Beta had no copper at all, and one owner now
+  answers for both paths.
+
+### Mob rendering
+
+- The pack owns the vanilla mob render controllers rather than inheriting modern lighting from
+  them: each controller re-declares its geometry, materials and textures, because an override
+  replaces the definition wholesale and a dropped short name would silently vanish a layer. The
+  bat is wired to its controller explicitly, which its client entity never declared.
+
+### World and tooling
+
+- The world border is removed. Radius 4000 was never Beta behaviour, so the module is deleted from
+  the tree rather than left dormant, along with its enforcement of a circular playable area.
+- Releases are published from the tracked changelog: `npm run release` reads the `## <version>`
+  section for the version `package.json` declares and attaches the built pack assets, so a
+  published release can no longer describe a build the tree does not contain.
+- `scripts/regolith.sh` lets a one-off environment variable override `.env` instead of letting the
+  file win, so `BETAFIED_SFTP_PASSWORD=... npm run push` behaves the way it reads.
+
 ## 5.2 — 2026-10-02
 
 5.2 is the release where the pack stopped describing Beta and started showing it. The Overworld now

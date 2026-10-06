@@ -32,8 +32,8 @@
 						"on_interact": {
 							"filters": {
 							"all_of": [
-								{ "test": "is_family", "subject" : "other", "value" :  "player"},
-								{ "test": "has_equipment", "domain": "hand", "subject": "other", "value": "coal"}
+								{ "test": "is_family", "subject" : "other", "value" :  "player"},									{ "test": "has_equipment", "domain": "hand", "subject": "other", "value": "coal"},
+									{ "test": "has_equipment", "domain": "hand", "subject": "other", "value": "charcoal"}
 							]
 							}
 						},
