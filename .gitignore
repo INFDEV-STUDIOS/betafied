@@ -12,6 +12,7 @@ build/
 *.mcaddon
 *.mcpack
 *.mctemplate
+*.mcworld
 
 # AI & Agent configurations, prompts, and planning artifacts
 # AGENTS.md is deliberately absent: agent tooling hides files matched here, so it is
@@ -28,5 +29,7 @@ scorecard.png
 # Local offline documentation corpus (scripts/fetch-reference-docs.sh)
 reference-docs/
 
-# Working copies of server worlds pulled down by scripts/wipeNether.mjs
+# Working copies of server worlds pulled down by scripts/wipeNether.mjs and unpacked by
+# scripts/pushWorld.mjs
 .betafied-wipe/
+.betafied-world/

@@ -77,5 +77,6 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `npm run watch`: Watches for local changes and rebuilds.
 - `npm run generate:biomes`: Regenerates every biome JSON from `scripts/lib/betaBiomes.mjs`, the single source of truth for the Beta biome table.
 - `npm run push`: Builds and uploads the packs to the hosted server over SFTP.
+- `npm run push:world`: Replaces a world on the hosted server with a local `.mcworld`. The pack pair already on the server wins, so the world keeps loading the packs installed there; the world's `level.dat` is patched for Beta APIs, uploaded to a staging directory, verified, and only then swapped in, leaving the replaced world beside it under a timestamped name. The server must be stopped and `--yes` passed — the header of `scripts/pushWorld.mjs` documents every flag.
 - `npm run release`: Creates or updates the GitHub release for the version in `package.json`, titling it `Betafied <version>` with notes taken from the [CHANGELOG.md](CHANGELOG.md) entry and the built `build/<version>/` pack assets attached. Pass `--dry-run` to print the notes without touching GitHub.
 - `npm run wipe-nether`: Filters already-generated Nether chunks out of a live world's LevelDB over SFTP. See [SECURITY.md](SECURITY.md) for the credentials it needs.
