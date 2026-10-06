@@ -4,8 +4,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import SftpClient from "ssh2-sftp-client";
-import nbt from "prismarine-nbt";
 import { loadEnv } from "./lib/env.mjs";
+import { enableBetaApiExperiments } from "./lib/levelDat.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -172,46 +172,12 @@ async function syncWorldPacks(sftp, worldPath, fileName, packInfo) {
 
 async function patchDatFile(sftp, datPath) {
   try {
-    const rawDat = await sftp.get(datPath);
-    if (!rawDat || rawDat.length < 8) return false;
-
-    const version = rawDat.readInt32LE(0);
-    const parsed = await nbt.parse(rawDat.subarray(8), "little");
-    if (!parsed?.parsed?.value) return false;
-
-    if (!parsed.parsed.value.experiments || parsed.parsed.value.experiments.type !== "compound") {
-      parsed.parsed.value.experiments = { type: "compound", value: {} };
-    }
-
-    const exp = parsed.parsed.value.experiments.value;
-    let modified = false;
-
-    const requiredFlags = [
-      "gametest",
-      "experiments_ever_used",
-      "saved_with_toggled_experiments",
-      "upcoming_creator_features",
-      "data_driven_biomes",
-    ];
-
-    for (const flag of requiredFlags) {
-      if (!exp[flag] || exp[flag].value !== 1) {
-        exp[flag] = { type: "byte", value: 1 };
-        modified = true;
-      }
-    }
-
-    if (modified) {
-      const newNbtBuf = nbt.writeUncompressed(parsed.parsed, "little");
-      const newHeader = Buffer.alloc(8);
-      newHeader.writeInt32LE(version, 0);
-      newHeader.writeInt32LE(newNbtBuf.length, 4);
-      const finalBuf = Buffer.concat([newHeader, newNbtBuf]);
-      await sftp.put(finalBuf, datPath);
-      return true;
-    }
-    return false;
+    const patched = await enableBetaApiExperiments(await sftp.get(datPath));
+    if (!patched.changed) return false;
+    await sftp.put(patched.raw, datPath);
+    return true;
   } catch {
+    // A world whose level.dat cannot be read is not worth aborting the pack push over.
     return false;
   }
 }

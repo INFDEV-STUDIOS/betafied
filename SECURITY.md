@@ -1,10 +1,10 @@
 # Security & Credential Rotation
 
-The SFTP login used by `npm run push` is the only credential betafied holds. It
-can replace the pack on the live server, so a value that reaches a commit is
-compromised: deleting it from the tip of `main` leaves it in every commit that
-introduced it, and the remote is public. Rotation is the fix; code changes only
-stop the leak from spreading.
+The SFTP login used by `npm run push` and `npm run push:world` is the only
+credential betafied holds. It can replace the pack, and any world, on the live
+server, so a value that reaches a commit is compromised: deleting it from the
+tip of `main` leaves it in every commit that introduced it, and the remote is
+public. Rotation is the fix; code changes only stop the leak from spreading.
 
 The pack itself ships no runtime secrets — no webhooks, no API keys — so unlike
 a project that bakes values into scripts at build time, there is no build-time
@@ -27,8 +27,9 @@ value; re-run it after any change to how credentials are supplied.
   ignores `.env` and every `.env.*` variant while keeping `.env.example`
   tracked, so the template documents each variable without carrying a value.
 - Node entrypoints load `.env` through `scripts/lib/env.mjs`. `npm run push`
-  refuses to start without `BETAFIED_SFTP_USER` and `BETAFIED_SFTP_PASSWORD`,
-  naming the missing variable instead of connecting with a default.
+  and `npm run push:world` refuse to start without `BETAFIED_SFTP_USER` and
+  `BETAFIED_SFTP_PASSWORD`, naming the missing variable instead of connecting
+  with a default.
 - `scripts/regolith.sh` sources `.env` before building, so the build sees the
   same values the Node entrypoints do.
 
