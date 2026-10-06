@@ -7,6 +7,12 @@ import { extractChangelogSection, releaseVersionFrom } from "./lib/changelog.mjs
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
+// The checkout carries several remotes (origin, fork, upstream), and without an explicit
+// repository `gh` picks whichever one it resolves first — for this tree that was the
+// archived upstream, not the org repo releases publish to. Pin it so the release always
+// lands in one place; GH_REPO still wins because it is read by the gh CLI itself.
+const REPO = process.env.GH_REPO ?? "Betafied-Bedrock/betafied-addon";
+
 const BANNER =
   "> **Note:** **Betafied** brings Minecraft Beta 1.7.3 to Bedrock Edition. When playing on the " +
   "**Betafied server**, you do **not** need to download this addon — the server handles all packs " +
@@ -28,12 +34,12 @@ function fail(message) {
  * Run `gh`, returning stdout; throws with the CLI's own stderr so a failure explains itself.
  */
 function gh(commandArgs) {
-  return execFileSync("gh", commandArgs, { cwd: ROOT, encoding: "utf8" });
+  return execFileSync("gh", commandArgs, { cwd: ROOT, encoding: "utf8", env: { ...process.env, GH_REPO: REPO } });
 }
 
 function ghSucceeds(commandArgs) {
   try {
-    execFileSync("gh", commandArgs, { cwd: ROOT, stdio: "ignore" });
+    execFileSync("gh", commandArgs, { cwd: ROOT, stdio: "ignore", env: { ...process.env, GH_REPO: REPO } });
     return true;
   } catch {
     return false;
