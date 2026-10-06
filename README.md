@@ -45,7 +45,6 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `doubleChest.ts`: Assembles two placed chests into the 54-slot `bh:double_chest` multi-block, planning the pair from the block's cardinal state so a latch keeps facing its placer.
 
 #### 5. World & Terrain (`packs/BP/scripts/world/`)
-- `worldBorder.ts`: World boundary enforcement (radius 4000).
 - `buildHeightLimit.ts`: Enforces the classic 128-block build ceiling.
 - `dimensionBoundary.ts`: Blocks entry to The End, which does not exist in Beta 1.7.3.
 - `chunkScrubber.ts`: Rewrites loaded chunks back to Beta 1.7.3 through filtered volume queries and native block fills, capping the Overworld at an uneven bedrock floor on Y=0.

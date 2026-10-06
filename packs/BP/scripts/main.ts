@@ -26,7 +26,6 @@ import "./world/underwaterOverlay.js";
 import "./world/island.js";
 import "./world/dimensionBoundary.js";
 import "./interactions/fenceConnectivity.js";
-import "./world/worldBorder.js";
 import "./mobs/entitySpawnHandler.js";
 import "./mobs/entityCleaner.js";
 import "./mobs/betaAnimalAI.js";

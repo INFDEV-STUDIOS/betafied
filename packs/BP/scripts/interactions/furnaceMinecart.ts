@@ -276,6 +276,8 @@ function startMinecartMovement(entity: Entity): void {
     activeIntervals.set(entityId, intervalId);
 }
 
+const FUEL_ITEM_IDS: ReadonlySet<string> = Object.freeze(new Set(["minecraft:coal", "minecraft:charcoal"]));
+
 function startFueledMinecart(entity: Entity): void {
     FurnaceState.setFuel(entity, CONFIG.FUEL_TICKS_PER_COAL);
     entity.setDynamicProperty("lastPosition", JSON.stringify(entity.location));
@@ -284,7 +286,8 @@ function startFueledMinecart(entity: Entity): void {
 
 eventBus.onPlayerInteractWithEntity((e) => {
     const { target: entity, itemStack } = e;
-    if (!itemStack || itemStack.typeId !== "minecraft:coal") return;
+    // Beta burned any fuel item in the hand; charcoal and coal were interchangeable (1600 ticks each).
+    if (!itemStack || !FUEL_ITEM_IDS.has(itemStack.typeId)) return;
     if (entity.typeId !== CONFIG.FURNACE_TYPE_ID) return;
 
     const variant = entity.getComponent(EntityComponentTypes.Variant);

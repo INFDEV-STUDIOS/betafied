@@ -156,6 +156,32 @@ describe("Classic Block Contract - Beta 1.7.3 logs, stairs and slabs", () => {
         }
     });
 
+    it("keeps charcoal obtainable by smelting any Beta log", () => {
+        // The pack retypes every held log into a bh: item, so vanilla's furnace_log_* recipes
+        // (input minecraft:log) can never match; these replacements are the only route to
+        // charcoal in survival. Charcoal carries vanilla's minecraft:coals tag, so torches,
+        // fires and the furnace itself accept it without further content.
+        for (const name of LOGS) {
+            const recipe = readJson(resolve(root, "packs/BP/recipes", `furnace_charcoal_${name}.json`))["minecraft:recipe_furnace"];
+
+            assert.equal(recipe.input.item, `bh:${name}`, `charcoal recipe must smelt the item players actually hold (${name})`);
+            assert.equal(recipe.output, "minecraft:charcoal");
+            assert.ok(recipe.tags.includes("furnace"), `charcoal recipe for ${name} must fire in a furnace`);
+        }
+    });
+
+    it("burns Beta logs in a furnace like the originals did", () => {
+        // Beta's logs were furnace fuel at 15 seconds, so the custom items must carry the
+        // fuel component themselves - tags do not grant burn time.
+        for (const name of LOGS) {
+            const item = readJson(resolve(root, "packs/BP/items", `${name}.json`))["minecraft:item"];
+            const fuel = item.components["minecraft:fuel"];
+
+            assert.ok(fuel, `${name} must declare minecraft:fuel`);
+            assert.equal(fuel.duration, 15.0, `${name} must burn for Beta's 15 seconds`);
+        }
+    });
+
     it("registers every block texture in the terrain atlas", () => {
         const atlas = readJson(resolve(root, "packs/RP/textures/terrain_texture.json")).texture_data;
 

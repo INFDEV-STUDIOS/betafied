@@ -1,0 +1,13 @@
+{
+    "format_version": "1.12",
+    "minecraft:recipe_furnace": {
+        "description": {
+            "identifier": "bh:furnace_charcoal_oak_log"
+        },
+        "tags": ["furnace", "campfire", "soul_campfire", "smoker"],
+        "input": {
+            "item": "bh:oak_log"
+        },
+        "output": "minecraft:charcoal"
+    }
+}
