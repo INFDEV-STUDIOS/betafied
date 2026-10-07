@@ -358,7 +358,8 @@ export const EntityComponentTypes = Object.freeze({
     Health: "minecraft:health",
     Variant: "minecraft:variant",
     Movement: "minecraft:movement",
-    Color: "minecraft:color"
+    Color: "minecraft:color",
+    Riding: "minecraft:riding"
 });
 
 export const ItemComponentTypes = Object.freeze({
