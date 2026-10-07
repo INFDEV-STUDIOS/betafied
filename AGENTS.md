@@ -30,7 +30,7 @@ The addon systematically transforms modern Bedrock behaviors to reflect the belo
   - Timers must use `system.run()`, `system.runTimeout()`, or `system.runInterval()` from `@minecraft/server`.
   - Enforced by ESLint `no-restricted-globals`.
 - **Bedrock Environment Typings**: `packs/BP/scripts/env.d.ts` provides ambient typings for Bedrock's global `console` (`log`, `warn`, `error`, `info`) without polluting the global scope with DOM types.
-- **Relative Imports Require `.js` Extension**: Minecraft's QuickJS ES module loader requires explicit `.js` extensions on all relative imports (e.g., `import { foo } from "./foo.js";`). This is enforced and autofixable via ESLint (`fysh/require-js-extension`).
+- **Relative Imports Require `.js` Extension**: Minecraft's QuickJS ES module loader requires explicit `.js` extensions on all relative imports (e.g., `import { foo } from "./foo.js";`). This is enforced and autofixable via ESLint (`betafied/require-js-extension`).
 - **All Submodules Must Be Imported**: The Regolith `ts_transpiler` filter only transpiles files that are imported directly or indirectly from `packs/BP/scripts/main.ts`. Unreferenced `.ts` files in subdirectories will not be emitted.
 
 ### 4. Bedrock Architecture & Script API Best Practices
@@ -119,6 +119,26 @@ betafied/
   npm run lint
   npx eslint packs/BP/scripts --fix
   ```
+
+### Script API lint rules
+
+`eslint-rules/` holds Betafied's own rules. They read the pinned `@minecraft/server` typings through the
+TypeScript checker instead of a hand-kept name list, so a finding is about the member the code actually
+resolves to — `Block.isSolid` and an unrelated `isSolid` are not the same question. Run `npm run lint`
+before writing against an API whose shape you have not confirmed:
+
+- **`betafied/no-beta-api`** (warning) — pre-release surface, i.e. a member the typings tag `@beta`. It
+  exists only while the manifest pins the beta module id, and the code around it looks like stable code,
+  so the failure is silent and late. Beta API is allowed here ([Rule 2](#2-api-stability--module-versions));
+  the warnings are the inventory of what we have committed to, and the fix is either a stable member that
+  does the same job or a comment saying why the pre-release one is needed.
+- **`betafied/no-live-reference-cache`** (error) — a module-scope container (or a field of a module-scope
+  class) typed to hold `Entity`, `Player`, `Block` or `Dimension` handles. Containers inside a function are
+  left alone: a `Map` built and dropped within one pass is the right way to walk a tick's entities.
+- **`betafied/require-js-extension`** (error, autofixable) — the `.js` on relative imports.
+
+Waive a finding with an inline `// eslint-disable-next-line betafied/<rule>` carrying the reason, not by
+relaxing the rule in `eslint.config.mjs` — the reason is the documentation.
 - **Build packs into Bedrock development folder**:
   ```bash
   npm run build
@@ -194,7 +214,7 @@ The official generated API docs live under `reference-docs/minecraft-creator/cre
 :::
 ```
 
-Anything inside such a fence is **unusable** under [Rule 2](#2-strict-api-stability-no-beta--unstable-apis). Unfenced members of a class are stable. Verify a member's stability before writing code against it, and cross-check the exact version in that module's `minecraft-<module>.md` before assuming it exists in our pinned `@minecraft/server@2.11.0-beta` (the exact build is in `package.json` and `packs/BP/manifest.json`).
+Anything inside such a fence is pre-release surface, and the typings carry the same fact as a `@beta` JSDoc tag on the member, which is what `betafied/no-beta-api` reports. Beta API is allowed here ([Rule 2](#2-api-stability--module-versions)), but the member only exists under the module id in `packs/BP/manifest.json`, so prefer a stable member that does the same job, and cross-check the exact version in that module's `minecraft-<module>.md` before assuming a member exists at all in the pinned build named in `package.json`.
 
 ---
 
