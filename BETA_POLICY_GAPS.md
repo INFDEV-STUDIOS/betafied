@@ -100,7 +100,7 @@ Resolved here:
   missing, so the death drop resolves the sheep's colour the way the shear table already did.
 - The zombie feather drop was removed from `entitySpawnHandler`; `loot_tables/entities/zombie.json` is
   now the single owner of that drop.
-- `swordMining.SWORD_FAST_BLOCKS` dropped the legacy ids (`web`, `leaves`, `leaves2`, `wooden_stairs`,
+- `toolMining.SWORD_FAST_BLOCKS` dropped the legacy ids (`web`, `leaves`, `leaves2`, `wooden_stairs`,
   `wool`) that never resolve on this engine, and takes its palette from `betaRegistry.WOOL_BY_COLOR`.
 
 Still open, and genuinely engine-dependent: the pack's own fishing tables sit at

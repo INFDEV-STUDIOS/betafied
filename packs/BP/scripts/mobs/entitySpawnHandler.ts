@@ -1,4 +1,4 @@
-import { world, system, ItemStack, Entity, EntityComponentTypes } from "@minecraft/server";
+import { world, system, ItemStack, Dimension, Entity, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
 import { resolveDropId } from "../core/normalizer.js";
@@ -8,69 +8,26 @@ const recentBrokenLeaves = new Map<string, number>();
 const recentBrokenChests = new Map<string, number>();
 const recentPlayerDeaths = new Map<string, number>();
 
-function cleanOldEntries(map: Map<string, number>, currentTick: number, maxAge: number = 20): void {
-    for (const [key, tick] of map) {
-        if (currentTick - tick > maxAge) {
-            map.delete(key);
+const dropOrigins = [recentBrokenLeaves, recentBrokenChests, recentPlayerDeaths];
+
+const ORIGIN_RADIUS = 1;
+const TREE_RADIUS = 2;
+
+function cleanOldEntries(currentTick: number): void {
+    for (const origins of dropOrigins) {
+        for (const [key, tick] of origins) {
+            if (currentTick - tick > 20) origins.delete(key);
         }
     }
 }
 
-export function isTreeAppleDrop(entity: Entity): boolean {
-    const loc = entity.location;
-    const dim = entity.dimension;
-    const currentTick = system.currentTick;
-
-    cleanOldEntries(recentBrokenLeaves, currentTick, 20);
-    cleanOldEntries(recentBrokenChests, currentTick, 20);
-    cleanOldEntries(recentPlayerDeaths, currentTick, 20);
-
-    const bx = Math.floor(loc.x);
-    const by = Math.floor(loc.y);
-    const bz = Math.floor(loc.z);
-
-    // Bedrock C++ engine hardcodes apple drops upon leaf destruction and decay.
-    // In Beta 1.7.3, trees never dropped apples.
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                const key = `${dim.id}:${bx + dx},${by + dy},${bz + dz}`;
-                if (recentBrokenLeaves.has(key)) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-            for (let dz = -1; dz <= 1; dz++) {
-                const key = `${dim.id}:${bx + dx},${by + dy},${bz + dz}`;
-                if (recentBrokenChests.has(key) || recentPlayerDeaths.has(key)) {
-                    return false;
-                }
-            }
-        }
-    }
-
-    const players = world.getAllPlayers();
-    for (const player of players) {
-        if (!player.isValid || player.dimension.id !== dim.id) continue;
-        const ploc = player.location;
-        const distSq = (ploc.x - loc.x) ** 2 + (ploc.y - loc.y) ** 2 + (ploc.z - loc.z) ** 2;
-        if (distSq < 2.25) {
-            return false;
-        }
-    }
-
-    for (let dx = -2; dx <= 2; dx++) {
-        for (let dy = -2; dy <= 2; dy++) {
-            for (let dz = -2; dz <= 2; dz++) {
+function hasBetaTreeAround(dim: Dimension, x: number, y: number, z: number): boolean {
+    for (let dx = -TREE_RADIUS; dx <= TREE_RADIUS; dx++) {
+        for (let dy = -TREE_RADIUS; dy <= TREE_RADIUS; dy++) {
+            for (let dz = -TREE_RADIUS; dz <= TREE_RADIUS; dz++) {
                 try {
-                    const block = dim.getBlock({ x: bx + dx, y: by + dy, z: bz + dz });
-                    if (block && (block.typeId.includes("leaves") || block.typeId.includes("log"))) {
-                        return true;
-                    }
+                    const block = dim.getBlock({ x: x + dx, y: y + dy, z: z + dz });
+                    if (block && (block.typeId.includes("leaves") || block.typeId.includes("log"))) return true;
                 } catch {
                     // Out of bounds or unloaded block safely ignored
                 }
@@ -79,6 +36,51 @@ export function isTreeAppleDrop(entity: Entity): boolean {
     }
 
     return false;
+}
+
+/**
+ * Whether a fresh `minecraft:apple` item entity is the engine's own leaf-decay drop rather than a
+ * player's.
+ *
+ * Bedrock's C++ engine hardcodes apple drops when leaves are destroyed or decay, and Beta 1.7.3 trees
+ * never dropped apples. A leaf broken in the neighbourhood owns the drop; a chest broken there or a
+ * nearby death does not, and neither does a player close enough to have broken the leaf themselves.
+ */
+export function isTreeAppleDrop(entity: Entity): boolean {
+    const loc = entity.location;
+    const dim = entity.dimension;
+
+    cleanOldEntries(system.currentTick);
+
+    const bx = Math.floor(loc.x);
+    const by = Math.floor(loc.y);
+    const bz = Math.floor(loc.z);
+
+    let leafOrigin = false;
+    let otherOrigin = false;
+
+    for (let dx = -ORIGIN_RADIUS; dx <= ORIGIN_RADIUS; dx++) {
+        for (let dy = -ORIGIN_RADIUS; dy <= ORIGIN_RADIUS; dy++) {
+            for (let dz = -ORIGIN_RADIUS; dz <= ORIGIN_RADIUS; dz++) {
+                const key = `${dim.id}:${bx + dx},${by + dy},${bz + dz}`;
+                if (recentBrokenLeaves.has(key)) leafOrigin = true;
+                else if (recentBrokenChests.has(key) || recentPlayerDeaths.has(key)) otherOrigin = true;
+            }
+        }
+    }
+
+    if (leafOrigin) return true;
+    if (otherOrigin) return false;
+
+    for (const player of world.getAllPlayers()) {
+        if (!player.isValid || player.dimension.id !== dim.id) continue;
+
+        const ploc = player.location;
+        const distSq = (ploc.x - loc.x) ** 2 + (ploc.y - loc.y) ** 2 + (ploc.z - loc.z) ** 2;
+        if (distSq < 2.25) return false;
+    }
+
+    return hasBetaTreeAround(dim, bx, by, bz);
 }
 
 eventBus.onPlayerBreakBlock((event) => {

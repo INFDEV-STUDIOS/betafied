@@ -41,7 +41,7 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `fenceConnectivity.ts`: Classic fence connection rules.
 - `furnaceMinecart.ts`: Coordinated scheduler managing fuel state, movement physics, rail checking, and collision impulses.
 - `boatCollision.ts`: Restores classic wooden boat impact destruction and drop behavior.
-- `swordMining.ts` / `redstoneMining.ts`: Tool-specific block breaking mechanics (cobweb fast-breaking, redstone mining fatigue).
+- `toolMining.ts`: Tool-specific block breaking mechanics (cobweb fast-breaking, redstone mining fatigue).
 - `doubleChest.ts`: Assembles two placed chests into the 54-slot `bh:double_chest` multi-block, planning the pair from the block's cardinal state so a latch keeps facing its placer.
 
 #### 5. World & Terrain (`packs/BP/scripts/world/`)

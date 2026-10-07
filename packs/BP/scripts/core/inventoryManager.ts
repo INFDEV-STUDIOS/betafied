@@ -44,25 +44,60 @@ const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = Object.freeze([
     EquipmentSlot.Offhand
 ]);
 
-export function processExemptInventory(player: Player): void {
-    const invComp = player.getComponent(EntityComponentTypes.Inventory);
-    const inv = invComp?.container;
-    if (inv) {
-        // `size` is a live native getter, and this sweep runs for every player every tick; reading
-        // it per iteration made the loop condition itself a native call.
-        const size = inv.size;
-        for (let i = 0; i < size; i++) {
-            const item = inv.getItem(i);
-            if (!item) continue;
+type SlotKey = number | EquipmentSlot;
 
-            const targetId = resolvePlacerReplacement(item.typeId);
-            if (targetId) {
-                inv.setItem(i, new ItemStack(targetId, item.amount));
-            }
-        }
+/**
+ * The inventory indexes its slots by number and the equipment by slot name, but the sweep does the same
+ * work to either, so it is written once against this and the container is chosen once per player.
+ */
+interface SlotAccessor {
+    readonly keys: readonly SlotKey[];
+    readonly label: string;
+    get(key: SlotKey): ItemStack | undefined;
+    set(key: SlotKey, item: ItemStack | undefined): void;
+    /** Only the inventory can split a stack; an equipped stack is cleared instead. */
+    split?(key: SlotKey, targetId: string, amount: number): void;
+}
+
+function inventorySlots(player: Player): SlotAccessor | undefined {
+    const container = player.getComponent(EntityComponentTypes.Inventory)?.container;
+    if (!container) return undefined;
+
+    // `size` is a live native getter, and this sweep runs for every player every tick; reading it per
+    // iteration made the loop condition itself a native call.
+    const keys = Array.from({ length: container.size }, (_, index) => index);
+
+    return {
+        keys,
+        label: "INV: Removed",
+        get: (key) => container.getItem(key as number),
+        set: (key, item) => container.setItem(key as number, item),
+        split: (key, targetId, amount) => handleItemUnstacking(player, container, key as number, targetId, amount)
+    };
+}
+
+function equipmentSlots(player: Player): SlotAccessor | undefined {
+    const equippable = player.getComponent(EntityComponentTypes.Equippable);
+    if (!equippable) return undefined;
+
+    return {
+        keys: EQUIPMENT_SLOTS,
+        label: "INV: Removed equipped",
+        get: (key) => equippable.getEquipment(key as EquipmentSlot),
+        set: (key, item) => equippable.setEquipment(key as EquipmentSlot, item)
+    };
+}
+
+function sweepPlacers(accessor?: SlotAccessor): void {
+    if (!accessor) return;
+
+    for (const key of accessor.keys) {
+        const item = accessor.get(key);
+        if (!item) continue;
+
+        const targetId = resolvePlacerReplacement(item.typeId);
+        if (targetId) accessor.set(key, new ItemStack(targetId, item.amount));
     }
-
-    processExemptEquipment(player);
 }
 
 /**
@@ -70,19 +105,13 @@ export function processExemptInventory(player: Player): void {
  * item-change event never reports the equipment slots, so they still need a tick-based poll while the
  * main inventory does not.
  */
+export function processExemptInventory(player: Player): void {
+    sweepPlacers(inventorySlots(player));
+    processExemptEquipment(player);
+}
+
 export function processExemptEquipment(player: Player): void {
-    const equippable = player.getComponent(EntityComponentTypes.Equippable);
-    if (!equippable) return;
-
-    for (const slot of EQUIPMENT_SLOTS) {
-        const item = equippable.getEquipment(slot);
-        if (!item) continue;
-
-        const targetId = resolvePlacerReplacement(item.typeId);
-        if (targetId) {
-            equippable.setEquipment(slot, new ItemStack(targetId, item.amount));
-        }
-    }
+    sweepPlacers(equipmentSlots(player));
 }
 
 // Players whose inventory the engine reported as changed since the last sweep. Reading all 36 slots of
@@ -92,6 +121,31 @@ const dirtyInventories = new Set<string>();
 
 export function markInventoryDirty(playerId: string): void {
     dirtyInventories.add(playerId);
+}
+
+function sweepPlayer(player: Player, fullSweep: boolean, equipmentSweep: boolean): void {
+    const isExempt = isInventoryExempt(player);
+    const wasExempt = previousExemptionState.get(player.id) ?? false;
+    const exemptionFlipped = isExempt !== wasExempt;
+
+    previousExemptionState.set(player.id, isExempt);
+
+    // A full sweep already covers the equipment slots, so it subsumes the equipment cadence.
+    const dirty = dirtyInventories.delete(player.id);
+    const sweepAll = dirty || exemptionFlipped || fullSweep;
+
+    if (isExempt) {
+        if (sweepAll) processExemptInventory(player);
+        else if (equipmentSweep) processExemptEquipment(player);
+        return;
+    }
+
+    // A player who just lost the tag gets their message cooldown cleared, so the first item the sweep
+    // removes tells them why instead of staying silent.
+    if (wasExempt) msgCooldowns.delete(player.id);
+
+    if (sweepAll) processInventory(player);
+    else if (equipmentSweep) processEquipment(player);
 }
 
 export function processPlayers(): void {
@@ -108,28 +162,7 @@ export function processPlayers(): void {
         if (!player.isValid) continue;
 
         try {
-            const isExempt = isInventoryExempt(player);
-            const wasExempt = previousExemptionState.get(player.id) ?? false;
-            const exemptionFlipped = isExempt !== wasExempt;
-
-            previousExemptionState.set(player.id, isExempt);
-
-            // A full sweep already covers the equipment slots, so it subsumes the equipment cadence.
-            const dirty = dirtyInventories.delete(player.id);
-            const sweepAll = dirty || exemptionFlipped || fullSweep;
-
-            if (isExempt) {
-                if (sweepAll) processExemptInventory(player);
-                else if (equipmentSweep) processExemptEquipment(player);
-                continue;
-            }
-
-            if (wasExempt) {
-                msgCooldowns.delete(player.id);
-            }
-
-            if (sweepAll) processInventory(player);
-            else if (equipmentSweep) processEquipment(player);
+            sweepPlayer(player, fullSweep, equipmentSweep);
         } catch (e) {
             reportError({
                 system: "InventoryManager",
@@ -227,54 +260,59 @@ function handleItemUnstacking(player: Player, inv: Container, slotIndex: number,
     }
 }
 
-export function processInventory(player: Player): void {
+function sweepStrict(player: Player, accessor?: SlotAccessor): { removed: boolean; stripped: boolean } {
+    if (!accessor) return { removed: false, stripped: false };
+
     let removed = false;
     let stripped = false;
 
-    const invComp = player.getComponent(EntityComponentTypes.Inventory);
-    const inv = invComp?.container;
-    if (inv) {
-        const size = inv.size;
-        for (let i = 0; i < size; i++) {
-            const item = inv.getItem(i);
-            if (!item) continue;
+    for (const key of accessor.keys) {
+        const item = accessor.get(key);
+        if (!item) continue;
 
-            const action = evaluateItemAction(item);
+        const action = evaluateItemAction(item);
 
-            switch (action.type) {
-                case "keep":
-                    break;
-                case "delete":
-                    inv.setItem(i, undefined);
+        switch (action.type) {
+            case "keep":
+                break;
+            case "delete":
+                accessor.set(key, undefined);
+                removed = true;
+                if (action.reason === "unsupported") console.log(`${accessor.label} ${item.typeId} from ${player.name}`);
+                break;
+            case "replace":
+            case "strip_enchantments":
+                accessor.set(key, action.item);
+                stripped ||= action.type === "strip_enchantments";
+                break;
+            case "unstack_food":
+            case "unstack_utility":
+                // Beta forbade stacking these, so the excess is split out where the slot allows it and
+                // dropped where it does not, rather than left as the stack the era never had.
+                if (!accessor.split) {
+                    accessor.set(key, undefined);
                     removed = true;
-                    if (action.reason === "unsupported") {
-                        console.log(`INV: Removed ${item.typeId} from ${player.name}`);
-                    }
                     break;
-                case "replace":
-                    inv.setItem(i, action.item);
-                    break;
-                case "strip_enchantments":
-                    inv.setItem(i, action.item);
-                    stripped = true;
-                    break;
-                case "unstack_food":
-                    handleItemUnstacking(player, inv, i, action.convertedId, action.totalAmount);
-                    break;
-                case "unstack_utility":
-                    handleItemUnstacking(player, inv, i, action.targetId, action.totalAmount);
-                    break;
-                default:
-                    break;
-            }
+                }
+                accessor.split(key, action.type === "unstack_food" ? action.convertedId : action.targetId, action.totalAmount);
+                break;
+            default:
+                break;
         }
     }
 
+    return { removed, stripped };
+}
+
+function reportSweep(player: Player, { removed, stripped }: { removed: boolean; stripped: boolean }): void {
     if (removed) notifyPlayer(player, CONFIG.REMOVE_MSG);
     if (stripped) notifyPlayer(player, CONFIG.ENCHANT_MSG);
+}
 
-    // Notified after the inventory half on purpose: the message cooldown is per player, so running
-    // this second keeps the inventory's message the one that reaches the player when both halves trip.
+export function processInventory(player: Player): void {
+    // The inventory half reports first on purpose: the message cooldown is per player, so this keeps
+    // the inventory's message the one that reaches the player when both halves trip.
+    reportSweep(player, sweepStrict(player, inventorySlots(player)));
     processEquipment(player);
 }
 
@@ -283,47 +321,7 @@ export function processInventory(player: Player): void {
  * cadence while the main inventory rides the item-change event.
  */
 export function processEquipment(player: Player): void {
-    let removed = false;
-    let stripped = false;
-
-    const equippable = player.getComponent(EntityComponentTypes.Equippable);
-    if (equippable) {
-        for (const slot of EQUIPMENT_SLOTS) {
-            const item = equippable.getEquipment(slot);
-            if (!item) continue;
-
-            const action = evaluateItemAction(item);
-
-            switch (action.type) {
-                case "keep":
-                    break;
-                case "delete":
-                    equippable.setEquipment(slot, undefined);
-                    removed = true;
-                    if (action.reason === "unsupported") {
-                        console.log(`INV: Removed equipped ${item.typeId} from ${player.name}`);
-                    }
-                    break;
-                case "replace":
-                    equippable.setEquipment(slot, action.item);
-                    break;
-                case "strip_enchantments":
-                    equippable.setEquipment(slot, action.item);
-                    stripped = true;
-                    break;
-                case "unstack_food":
-                case "unstack_utility":
-                    equippable.setEquipment(slot, undefined);
-                    removed = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
-    if (removed) notifyPlayer(player, CONFIG.REMOVE_MSG);
-    if (stripped) notifyPlayer(player, CONFIG.ENCHANT_MSG);
+    reportSweep(player, sweepStrict(player, equipmentSlots(player)));
 }
 
 function notifyPlayer(player: Player, msg: string): void {
