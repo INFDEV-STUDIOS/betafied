@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { SWORD_FAST_BLOCKS } from "../../packs/BP/scripts/interactions/swordMining.js";
+import { SWORD_FAST_BLOCKS } from "../../packs/BP/scripts/interactions/toolMining.js";
 
 const root = process.cwd();
 
