@@ -2,6 +2,53 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.3.1 — 2026-10-07
+
+5.3.1 is a script-only fix-up: no blocks, items or recipes changed, and the world generates exactly
+as 5.3 left it. The headline is the return of farmland trampling on the era's terms, which Bedrock
+had banished to landings only; the rest is the same behaviour carried by less code.
+
+### Farmland trampling
+
+Bedrock tramples farmland only when something *lands* on it, so Beta's walking rule — the thing that
+made farms need fences — was missing entirely, and jumping on a farm destroyed it, which the era never
+did. `interactions/cropTrampling.ts` re-adds both halves:
+
+- **Walking tramples again**, on Beta's own terms: the era's step cadence, its one-in-four roll, the
+  sneak exemption, and the rider exemption — the mount tramples, the player on its back does not. The
+  fence trick is total again because the walking rule honours it, exactly as 1.7.3 did.
+- **A walked-off crop comes down with its soil and pays the era's drop.** 1.7.3's `BlockCrops` paid
+  one wheat only when ripe and up to three rolls of seeds; unripe crops could drop nothing. Waiting
+  for the engine's own block update would pop the crop with the modern loot table, so the walking
+  rule breaks the crop itself and spawns the era's drops.
+- **Bedrock's landing trample is undone, not prevented.** The engine converts the block inside its own
+  tick with no script hook in front of it, so the module watches the columns a falling entity is
+  heading into and puts the farmland — moisture and crop growth included — back from a snapshot, and
+  clears the crop drops the break spawned so the restore cannot be farmed for free. The guard serves
+  every game mode, because it is undoing an engine behaviour the era never had.
+- **Placed dirt is the player's.** Dirt a player puts down on a watched tile is left alone; only the
+  engine's own trample is restored.
+
+Beta's mobs trample too, since `canTriggerWalking()` was true for every entity; if animal trampling
+proves too punishing on a server, that sweep is the first constant to revisit — see
+`BETA_POLICY_GAPS.md` §8, which also lists the in-game checks still owed.
+
+### Same behaviour, less script
+
+The two tool-bonus modules were the same tick loop written twice. They are now one `toolMining.ts`
+module that runs both halves — the pickaxe's redstone-mining fatigue and the sword's leaf-and-wool
+speed — through a shared pass, and `main.ts` loads a single module for them. The inventory sweep's
+four near-identical slot loops collapsed into one implementation for both the 36-slot inventory and
+the equipment slots, and the apple-drop check reads its 27-cell neighbourhood once per spawn instead
+of three times. Net change to shipped script: 32 fewer lines and one fewer module, with the suite
+still passing at 393 tests.
+
+### Tooling (not in the pack)
+
+`eslint-rules/` adds three Betafied-owned ESLint rules, the notable one being `no-beta-api`, which
+warns when script calls a member the pinned `@minecraft/server` typings tag `@beta`, so a
+dependence on pre-release surface is declared at lint time rather than discovered in game.
+
 ## 5.3 — 2026-10-06
 
 5.3 is a fix-up release: the ores that were retuned after 5.2 landed on the pack's own generation

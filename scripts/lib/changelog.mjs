@@ -5,12 +5,16 @@
  */
 
 /**
- * `5.2.0` -> `5.2`, which is the tag shape the packs and releases use (major.minor).
+ * `5.2.0` -> `5.2`, which is the tag shape the packs and releases use (major.minor). A patch
+ * release keeps its digit — `5.3.1` -> `5.3.1` — so it can publish under its own tag; only an
+ * explicit `.0` collapses, since that is not a release a maintainer asked for but the zero that
+ * rounds the triple out.
  * Returns null when the version is not a semver triple, so the caller can fail loudly.
  */
 export function releaseVersionFrom(packageVersion) {
-  const match = /^(\d+)\.(\d+)(?:\.\d+)?(?:[-+].*)?$/.exec(String(packageVersion ?? "").trim());
-  return match ? `${match[1]}.${match[2]}` : null;
+  const match = /^(\d+)\.(\d+)(?:\.(\d+))?(?:[-+].*)?$/.exec(String(packageVersion ?? "").trim());
+  if (!match) return null;
+  return match[3] && match[3] !== "0" ? `${match[1]}.${match[2]}.${match[3]}` : `${match[1]}.${match[2]}`;
 }
 
 function matchesVersion(heading, version) {
