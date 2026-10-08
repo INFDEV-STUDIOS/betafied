@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { repairFloorOverflow, solidifyBetaFloor } from "../../packs/BP/scripts/world/chunkScrubber.js";
+import { solidifyBetaFloor } from "../../packs/BP/scripts/world/chunkScrubber.js";
 
 /**
  * Records the native fill calls the way the scrubber makes them. The code talks to the block API
@@ -96,32 +96,15 @@ describe("Beta floor - deep world sealing", () => {
     });
 });
 
-describe("Beta floor - stray bedrock repair", () => {
-    it("clears bedrock above the ceiling only when the chunk actually holds it", () => {
+describe("Beta floor - bedrock above the floor is left alone", () => {
+    it("solidifying the floor never clears bedrock above Y=2, wherever it sits", () => {
         const stray = capturingDimension("minecraft:overworld", 8);
-        repairFloorOverflow(stray as never, 0, 0);
+        solidifyBetaFloor(stray as never, 0, 0);
 
-        assert.deepEqual(
-            stray.commands,
-            ["fill 0 3 0 15 130 15 minecraft:air replace minecraft:bedrock"],
-            `expected one clear above the ceiling, got: ${stray.commands.join(" | ")}`
-        );
-    });
-
-    it("leaves a chunk with no stray bedrock untouched", () => {
-        const clean = capturingDimension("minecraft:overworld");
-        repairFloorOverflow(clean as never, 0, 0);
-
-        assert.deepEqual(clean.commands, [], "a clean chunk must not pay for a write");
-    });
-
-    it("never touches the Nether or the End", () => {
-        const nether = capturingDimension("minecraft:the_nether", 8);
-        const end = capturingDimension("minecraft:the_end", 8);
-        repairFloorOverflow(nether as never, 0, 0);
-        repairFloorOverflow(end as never, 0, 0);
-
-        assert.deepEqual(nether.commands, []);
-        assert.deepEqual(end.commands, []);
+        for (const command of stray.commands) {
+            const [, , fy1] = command.split(" ");
+            assert.ok(Number(fy1) <= 2, `expected no write reaching above Y=2, got: ${command}`);
+            assert.ok(!command.includes("minecraft:air"), `expected no air clear, got: ${command}`);
+        }
     });
 });

@@ -2,6 +2,40 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.3.2 — 2026-10-07
+
+5.3.2 is a fix-up release: items, food and bows unstack properly without duplication, the chest recipe
+crafts the Beta chest across all plank varieties and overrides vanilla's recipe, and world boundary
+lookups are guarded cleanly.
+
+### Item normalization and unstacking
+
+- **Custom food and bow unstacking.** Custom foods (`bh:` porkchop, bread, apple, cod, golden apple)
+  and bows (`bh:bow`) are now evaluated during the inventory sweep. Stacked foods unstack to Beta limits
+  (cookies up to 8, other foods down to 1), and stacked bows unstack into individual items while stripping
+  modern enchantments.
+- **Duplication prevention during unstacking.** `handleItemUnstacking` now respects maximum stack sizes
+  when distributing overflow across empty slots and when dropping items into the world, dropping items
+  in bounded stacks rather than a single oversized bundle.
+- **Cake is unstackable.** Added `minecraft:cake` to `UNSTACKABLE_UTILITIES`.
+
+### Chest crafting recipe
+
+- **Overrides the vanilla recipe identifier.** The shaped recipe now uses `minecraft:chest` as its
+  identifier with `["crafting_table", "beta_crafting"]` tags, preventing players from crafting modern
+  vanilla chests on either table.
+- **Universal plank support.** Recipe inputs and unlock criteria use the `minecraft:planks` tag instead of
+  requiring oak planks exclusively, allowing all plank types to craft `bh:chest`.
+
+### World and boundary guards
+
+- **Out-of-bounds submersion guard.** `isHeadSubmerged` in `underwaterOverlay.ts` checks the dimension
+  height range (`head.y < min || head.y >= max`) before calling `getBlock`, eliminating recurring
+  `LocationOutOfWorldBoundariesError` exceptions when players are above the world or below the void, and
+  lifting the screen tint cleanly when entering the void.
+- **Bedrock floor preservation.** `chunkScrubber.ts` no longer clears bedrock above the floor ceiling,
+  leaving intentional bedrock above Y=2 untouched during chunk scans.
+
 ## 5.3.1 — 2026-10-07
 
 5.3.1 is a script-only fix-up: no blocks, items or recipes changed, and the world generates exactly

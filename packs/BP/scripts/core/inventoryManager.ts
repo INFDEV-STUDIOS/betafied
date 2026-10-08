@@ -10,7 +10,7 @@ import {
 } from "@minecraft/server";
 import { isInventoryExempt } from "./permissions.js";
 import { reportError } from "./errorReporter.js";
-import { BH_BOW_ID, isBetaItem, isVanillaId } from "./betaRegistry.js";
+import { BH_BOW_ID, isBetaItem, isModItem, isVanillaId } from "./betaRegistry.js";
 import { ARMOR_SLOTS } from "./equipmentSlots.js";
 import { normalizeItem, resolvePlacerReplacement, FOOD_CONVERSIONS } from "./normalizer.js";
 import { tickManager } from "./tickManager.js";
@@ -33,8 +33,15 @@ const UNSTACKABLE_UTILITIES: Readonly<Set<string>> = Object.freeze(new Set([
     "minecraft:wooden_door",
     "minecraft:iron_door",
     "minecraft:oak_sign",
-    "minecraft:bucket"
+    "minecraft:bucket",
+    "minecraft:cake"
 ]));
+
+const BH_FOOD_IDS: ReadonlySet<string> = Object.freeze(new Set(Object.values(FOOD_CONVERSIONS)));
+
+function maxBetaStackSize(typeId: string): number {
+    return typeId === "bh:cookie" || typeId === "minecraft:cookie" ? 8 : 1;
+}
 
 const msgCooldowns = new Map<string, number>();
 const previousExemptionState = new Map<string, boolean>();
@@ -194,6 +201,30 @@ function preserveDurability(sourceItem: ItemStack, targetItem: ItemStack): void 
 export function evaluateItemAction(item: ItemStack): ItemNormalizationAction {
     const id = item.typeId;
 
+    if (!isVanillaId(id) && !isModItem(id)) {
+        return { type: "keep" };
+    }
+
+    if (BH_FOOD_IDS.has(id)) {
+        if (item.amount > maxBetaStackSize(id)) {
+            return { type: "unstack_food", convertedId: id, totalAmount: item.amount };
+        }
+        return { type: "keep" };
+    }
+
+    if (id === BH_BOW_ID) {
+        if (item.amount > 1) {
+            return { type: "unstack_utility", targetId: id, totalAmount: item.amount };
+        }
+        const enchantable = item.getComponent(ItemComponentTypes.Enchantable);
+        if (enchantable && enchantable.getEnchantments().length > 0) {
+            const cleanItem = new ItemStack(id, item.amount);
+            preserveDurability(item, cleanItem);
+            return { type: "strip_enchantments", item: cleanItem };
+        }
+        return { type: "keep" };
+    }
+
     if (!isVanillaId(id)) {
         return { type: "keep" };
     }
@@ -243,20 +274,25 @@ export function evaluateItemAction(item: ItemStack): ItemNormalizationAction {
 }
 
 function handleItemUnstacking(player: Player, inv: Container, slotIndex: number, targetId: string, amount: number): void {
-    inv.setItem(slotIndex, new ItemStack(targetId, 1));
-    if (amount <= 1) return;
+    const maxStack = maxBetaStackSize(targetId);
+    const slotAmount = Math.min(amount, maxStack);
+    inv.setItem(slotIndex, new ItemStack(targetId, slotAmount));
+    if (amount <= slotAmount) return;
 
-    let remaining = amount - 1;
+    let remaining = amount - slotAmount;
     const size = inv.size;
     for (let s = 0; s < size && remaining > 0; s++) {
         if (!inv.getItem(s)) {
-            inv.setItem(s, new ItemStack(targetId, 1));
-            remaining--;
+            const place = Math.min(remaining, maxStack);
+            inv.setItem(s, new ItemStack(targetId, place));
+            remaining -= place;
         }
     }
 
-    if (remaining > 0) {
-        player.dimension.spawnItem(new ItemStack(targetId, remaining), player.location);
+    while (remaining > 0) {
+        const dropAmount = Math.min(remaining, maxStack);
+        player.dimension.spawnItem(new ItemStack(targetId, dropAmount), player.location);
+        remaining -= dropAmount;
     }
 }
 
