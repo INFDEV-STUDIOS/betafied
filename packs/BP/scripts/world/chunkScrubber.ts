@@ -45,12 +45,6 @@ const REVERIFY_INTERVAL_TICKS = 2400;
 
 const BETA_FLOOR_LAYERS = 2;
 
-// The highest Y the floor generator may write. Anything above it is a floor written by an older
-// build and is cleared back to air.
-const BETA_FLOOR_CEILING = BETA_FLOOR_Y + BETA_FLOOR_LAYERS;
-
-const BEDROCK_FILTER: BlockFilter = Object.freeze({ includeTypes: ["minecraft:bedrock"] });
-
 /**
  * Matches a log laid on its side.
  *
@@ -244,32 +238,6 @@ export function solidifyBetaFloor(dim: Dimension, cx: number, cz: number): void 
             runStart = height > 0 ? x : -1;
             runHeight = height;
         }
-    }
-}
-
-/**
- * Clears stray bedrock above the sealed floor.
- *
- * Bedrock only exists naturally at the bottom of the world, so anything above the ceiling in the
- * Overworld is an artifact of a floor written by an older build. The presence probe gates the fill,
- * so a clean chunk pays one native scan per band and no write at all.
- */
-export function repairFloorOverflow(dim: Dimension, cx: number, cz: number): void {
-    if (dim.id !== OVERWORLD_ID) return;
-
-    const { max: yMax } = dim.heightRange;
-    const x1 = cx * CHUNK_SIZE;
-    const z1 = cz * CHUNK_SIZE;
-    const x2 = x1 + CHUNK_SIZE - 1;
-    const z2 = z1 + CHUNK_SIZE - 1;
-
-    for (let y = BETA_FLOOR_CEILING + 1; y <= yMax; y += BAND_HEIGHT) {
-        const bandTop = Math.min(y + BAND_HEIGHT - 1, yMax);
-        const volume = new BlockVolume({ x: x1, y, z: z1 }, { x: x2, y: bandTop, z: z2 });
-
-        if (!containsBlocksIn(dim, volume, BEDROCK_FILTER)) continue;
-
-        fill(dim, x1, y, z1, x2, bandTop, z2, "minecraft:air", BEDROCK_FILTER);
     }
 }
 
@@ -519,7 +487,6 @@ export function* chunkScanJob(): Generator<void, void, unknown> {
 
             SCRUB_IN_FLIGHT.set(key, tick);
             solidifyBetaFloor(dimension, chunkX, chunkZ);
-            repairFloorOverflow(dimension, chunkX, chunkZ);
             clearFallenLogs(dimension, chunkX, chunkZ);
 
             const clean = yield* scrubFineDetails(dimension, chunkX, chunkZ);

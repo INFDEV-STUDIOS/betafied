@@ -36,6 +36,15 @@ let ticksSinceRefresh = 0;
 
 export function isHeadSubmerged(player: Player): boolean {
     const head = player.getHeadLocation();
+    const { min, max } = player.dimension.heightRange;
+
+    // Outside the height range getBlock raises LocationOutOfWorldBoundariesError, and unlike an
+    // unloaded chunk that answer is definite — there is no water in the void. Reporting dry here
+    // keeps a player parked out of bounds from re-logging the failed lookup on every tick.
+    if (head.y < min || head.y >= max) {
+        return false;
+    }
+
     const block = player.dimension.getBlock({
         x: Math.floor(head.x),
         y: Math.floor(head.y),
