@@ -16,6 +16,7 @@ import type {
     EntityDieAfterEvent,
     EntityHitEntityAfterEvent,
     EntityHurtAfterEvent,
+    EntityLoadAfterEvent,
     EntitySpawnAfterEvent,
     ItemReleaseUseAfterEvent,
     ItemStartUseAfterEvent,
@@ -105,6 +106,10 @@ class EventBus {
         return this.subscribe("entitySpawn", callback, priority);
     }
 
+    onEntityLoad(callback: (event: EntityLoadAfterEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("entityLoad", callback, priority);
+    }
+
     onEntityDie(callback: (event: EntityDieAfterEvent) => void, priority: number = 0): () => void {
         return this.subscribe("entityDie", callback, priority);
     }
@@ -192,6 +197,7 @@ class EventBus {
 
         world.afterEvents.itemUse.subscribe((e) => this.dispatch("itemUseAfter", e));
         world.afterEvents.entitySpawn.subscribe((e) => this.dispatch("entitySpawn", e));
+        world.afterEvents.entityLoad.subscribe((e) => this.dispatch("entityLoad", e));
         world.afterEvents.entityDie.subscribe((e) => this.dispatch("entityDie", e));
         world.afterEvents.entityHurt.subscribe((e) => this.dispatch("entityHurt", e));
         world.afterEvents.entityHitEntity.subscribe((e) => this.dispatch("entityHitEntity", e));

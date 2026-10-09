@@ -172,4 +172,14 @@ describe("Bedrock Natural Spawning Contract - Spawn Rules & Biome Integrity", ()
             }
         }
     });
+
+    it("verifies authentic Beta wolf behavior definitions (no breeding, dyeing, or leashing)", () => {
+        const wolfPath = resolve(root, "packs/BP/entities/wolf.json");
+        const content = JSON.parse(readFileSync(wolfPath, "utf-8"));
+        const tame = content["minecraft:entity"]?.component_groups?.["minecraft:wolf_tame"];
+        assert.ok(tame, "wolf.json must declare minecraft:wolf_tame");
+        assert.equal(tame["minecraft:behavior.breed"], undefined, "Beta wolves cannot breed");
+        assert.equal(tame["minecraft:is_dyeable"], undefined, "Beta wolves cannot have collars dyed");
+        assert.equal(tame["minecraft:leashable"], undefined, "Beta wolves cannot be leashed");
+    });
 });

@@ -232,6 +232,7 @@ export const world = {
     },
     afterEvents: {
         entitySpawn: createEventSignal(registeredAfterEvents, "entitySpawn"),
+        entityLoad: createEventSignal(registeredAfterEvents, "entityLoad"),
         entityDie: createEventSignal(registeredAfterEvents, "entityDie"),
         blockBreak: createEventSignal(registeredAfterEvents, "blockBreak"),
         entityHurt: createEventSignal(registeredAfterEvents, "entityHurt"),
@@ -329,6 +330,27 @@ export const GameMode = Object.freeze({
     Creative: "creative",
     Adventure: "adventure",
     Spectator: "spectator"
+});
+
+export const HudElement = Object.freeze({
+    PaperDoll: 0,
+    Armor: 1,
+    ToolTips: 2,
+    TouchControls: 3,
+    Crosshair: 4,
+    Hotbar: 5,
+    Health: 6,
+    ProgressBar: 7,
+    Hunger: 8,
+    AirBubbles: 9,
+    HorseHealth: 10,
+    StatusEffects: 11,
+    ItemText: 12
+});
+
+export const HudVisibility = Object.freeze({
+    Hide: 0,
+    Reset: 1
 });
 
 export const EntityDamageCause = Object.freeze({
@@ -441,8 +463,14 @@ export class Player extends Entity {
 
     public onScreenDisplay = {
         titles: [] as string[],
+        hiddenHudElements: [] as number[],
         setTitle(text: string) {
             this.titles.push(text);
+        },
+        setHudVisibility(visibility: number, hudElements?: number[]) {
+            if (visibility === HudVisibility.Hide && hudElements) {
+                this.hiddenHudElements.push(...hudElements);
+            }
         }
     };
 
