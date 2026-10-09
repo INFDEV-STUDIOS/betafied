@@ -97,49 +97,71 @@ eventBus.onPlayerBreakBlock((event) => {
     }
 });
 
+const UNAUTHENTIC_TREE_DROPS = new Set([
+    "minecraft:apple",
+    "bh:apple",
+    "minecraft:stick"
+]);
+
+function handleItemDrop(entity: Entity): void {
+    const itemComp = entity.getComponent(EntityComponentTypes.Item);
+    if (!itemComp?.itemStack) return;
+
+    const itemId = itemComp.itemStack.typeId;
+    const amount = itemComp.itemStack.amount;
+
+    if (UNAUTHENTIC_TREE_DROPS.has(itemId) && isTreeAppleDrop(entity)) {
+        entity.remove();
+        return;
+    }
+
+    // The inventory sweeper retypes held items into their `bh:` form on pickup, so the drop
+    // has to land on that same identifier. Left as the vanilla id, a second log finds no stack
+    // to merge into - the first one is already `bh:oak_log` - and every pickup lands alone.
+    const finalId = resolveDropId(itemId);
+    if (finalId === null) {
+        entity.remove();
+    } else if (finalId !== itemId) {
+        const loc = entity.location;
+        const dim = entity.dimension;
+        entity.remove();
+        const dropAmount = (itemId === "minecraft:raw_iron" || itemId === "minecraft:raw_gold") ? 1 : amount;
+        dim.spawnItem(new ItemStack(finalId, dropAmount), loc);
+    }
+}
+
+export function sanitizeWorldEntity(entity: Entity | undefined): void {
+    if (!entity || !entity.isValid) return;
+
+    if (entity.typeId === "minecraft:item") {
+        handleItemDrop(entity);
+        return;
+    }
+
+    if (isVanillaId(entity.typeId) && !isBetaEntity(entity.typeId)) {
+        entity.remove();
+    }
+}
+
 eventBus.onEntitySpawn((event) => {
     try {
-        const entity = event.entity;
-        if (!entity || !entity.isValid) return;
-
-        const typeId = entity.typeId;
-
-        if (typeId === "minecraft:item") {
-            const itemComp = entity.getComponent(EntityComponentTypes.Item);
-            if (!itemComp?.itemStack) return;
-
-            const itemId = itemComp.itemStack.typeId;
-            const amount = itemComp.itemStack.amount;
-
-            if ((itemId === "minecraft:apple" || itemId === "bh:apple") && isTreeAppleDrop(entity)) {
-                entity.remove();
-                return;
-            }
-
-            // The inventory sweeper retypes held items into their `bh:` form on pickup, so the drop
-            // has to land on that same identifier. Left as the vanilla id, a second log finds no stack
-            // to merge into - the first one is already `bh:oak_log` - and every pickup lands alone.
-            const finalId = resolveDropId(itemId);
-            if (finalId === null) {
-                entity.remove();
-            } else if (finalId !== itemId) {
-                const loc = entity.location;
-                const dim = entity.dimension;
-                entity.remove();
-                dim.spawnItem(new ItemStack(finalId, amount), loc);
-            }
-
-            return;
-        }
-
-        if (isVanillaId(typeId) && !isBetaEntity(typeId)) {
-            entity.remove();
-        }
-
+        sanitizeWorldEntity(event.entity);
     } catch (e) {
         reportError({
             system: "entitySpawnHandler",
-            operation: "entitySpawnValidation",
+            operation: "entitySpawnSanitization",
+            target: event.entity?.typeId
+        }, e);
+    }
+});
+
+eventBus.onEntityLoad((event) => {
+    try {
+        sanitizeWorldEntity(event.entity);
+    } catch (e) {
+        reportError({
+            system: "entitySpawnHandler",
+            operation: "entityLoadSanitization",
             target: event.entity?.typeId
         }, e);
     }
