@@ -84,7 +84,7 @@ export class TickManager {
                 runCatching({ system: "tickManager", operation: `task:${task.id}` }, () => {
                     const result = task.task();
                     if (result && typeof result[Symbol.iterator] === "function") {
-                        const jobId = this.jobRunner.run(result as Generator<void, void, void>, {
+                        const jobId = this.jobRunner.run(result, {
                             system: "tickManager",
                             operation: `task:${task.id}`,
                             onFinally: () => {
