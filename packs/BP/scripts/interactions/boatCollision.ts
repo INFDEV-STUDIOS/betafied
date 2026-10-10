@@ -7,6 +7,7 @@ import { normalizeXZ, scale } from "../core/vectorMath.js";
 
 const CONFIG = Object.freeze({
     TICK_INTERVAL: 10,
+    BOATS_PER_TICK: 10,
     NON_SOLID_WHITELIST: Object.freeze(["minecraft:air", "minecraft:water", "minecraft:soul_sand"])
 });
 
@@ -30,11 +31,14 @@ function breakBoatWithItem(boat: Entity): void {
     dim.spawnItem(new ItemStack("minecraft:oak_boat", 1), loc);
 }
 
-export function boatLoopJob(): void {
+export function* boatLoopJob(): Generator<void, void, unknown> {
     const overworld = world.getDimension(OVERWORLD_KEY);
     const boats = overworld.getEntities({ type: "minecraft:boat" });
 
+    let processed = 0;
     for (const boat of boats) {
+        if (!boat.isValid) continue;
+
         try {
             const loc = boat.location;
             const x = Math.floor(loc.x);
@@ -56,29 +60,29 @@ export function boatLoopJob(): void {
                 }
             }
 
-            if (broken) continue;
+            if (!broken) {
+                const vel: Vector3 = boat.getVelocity();
+                if (vel && (Math.abs(vel.x) >= 0.01 || Math.abs(vel.z) >= 0.01)) {
+                    const blockBelow = overworld.getBlock({
+                        x: Math.floor(loc.x),
+                        y: Math.floor(loc.y - 0.3),
+                        z: Math.floor(loc.z)
+                    });
 
-            const vel: Vector3 = boat.getVelocity();
-            if (!vel || (Math.abs(vel.x) < 0.01 && Math.abs(vel.z) < 0.01)) continue;
+                    if (blockBelow?.typeId === "minecraft:water") {
+                        const dir = normalizeXZ({ x: vel.x, z: vel.z });
+                        const offset = scale(dir, -1);
 
-            const blockBelow = overworld.getBlock({
-                x: Math.floor(loc.x),
-                y: Math.floor(loc.y - 0.3),
-                z: Math.floor(loc.z)
-            });
+                        const bubblePos = {
+                            x: loc.x + offset.x,
+                            y: loc.y + 0.1,
+                            z: loc.z + offset.z
+                        };
 
-            if (blockBelow?.typeId !== "minecraft:water") continue;
-
-            const dir = normalizeXZ({ x: vel.x, z: vel.z });
-            const offset = scale(dir, -1);
-
-            const bubblePos = {
-                x: loc.x + offset.x,
-                y: loc.y + 0.1,
-                z: loc.z + offset.z
-            };
-
-            boat.dimension.spawnParticle("minecraft:basic_bubble_particle_gradual", bubblePos);
+                        boat.dimension.spawnParticle("minecraft:basic_bubble_particle_gradual", bubblePos);
+                    }
+                }
+            }
         } catch (e) {
             reportError({
                 system: "boatCollision",
@@ -86,7 +90,17 @@ export function boatLoopJob(): void {
                 target: boat.id
             }, e);
         }
+
+        processed++;
+        if (processed % CONFIG.BOATS_PER_TICK === 0) {
+            yield;
+        }
     }
+}
+
+export function processBoats(): void {
+    const job = boatLoopJob();
+    while (!job.next().done) {}
 }
 
 tickManager.register("boatCollision", CONFIG.TICK_INTERVAL, boatLoopJob, 6);

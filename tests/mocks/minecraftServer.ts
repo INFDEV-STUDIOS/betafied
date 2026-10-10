@@ -458,6 +458,15 @@ export class Entity {
         this.isRemoved = true;
     }
 
+    kill(): void {
+        this.isValid = false;
+        this.isRemoved = true;
+    }
+
+    getVelocity(): { x: number; y: number; z: number } {
+        return { x: 0, y: 0, z: 0 };
+    }
+
     nameTag: string = "";
     rotation: { x: number; y: number } = { x: 0, y: 0 };
     public animationsPlayed: string[] = [];
