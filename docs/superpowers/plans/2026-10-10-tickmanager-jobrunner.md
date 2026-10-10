@@ -38,7 +38,7 @@
 - Consumes: `tickManager` from `../../packs/BP/scripts/core/tickManager.js`
 - Produces: New unit tests asserting overlap suppression, teardown on unregister/stop, and error recovery
 
-- [ ] **Step 1: Write failing tests in `tests/core/tickManager.test.ts`**
+- [x] **Step 1: Write failing tests in `tests/core/tickManager.test.ts`**
 
 Add tests for:
 1. Overlap suppression: Task with interval 2 returning a 3-tick generator is not reinvoked at tick 2; reinvoked after completion.
@@ -46,12 +46,12 @@ Add tests for:
 3. Stop cancellation: Calling `stop()` cancels all in-flight jobs.
 4. Error recovery: Generator that throws on step 2 does not crash tickManager and clears in-flight state.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/core/tickManager.test.ts`
 Expected: FAIL (concurrency suppression and job cancellation not yet implemented in `TickManager`)
 
-- [ ] **Step 3: Commit test additions**
+- [x] **Step 3: Commit test additions**
 
 ```bash
 git add tests/core/tickManager.test.ts
@@ -70,7 +70,7 @@ git commit -m "test(core): add tests for TickManager generator overlap and lifec
 - Consumes: `JobRunner` from `./jobRunner.js`, `ScheduledTask` from `./tickManager.js`
 - Produces: Updated `TickManager` class with `jobRunner` and `inFlightJobs` tracking
 
-- [ ] **Step 1: Update `packs/BP/scripts/core/tickManager.ts`**
+- [x] **Step 1: Update `packs/BP/scripts/core/tickManager.ts`**
 
 1. Import `JobRunner` from `./jobRunner.js`.
 2. Add fields `private readonly jobRunner = new JobRunner();` and `private readonly inFlightJobs = new Map<string, number>();`.
@@ -88,12 +88,12 @@ git commit -m "test(core): add tests for TickManager generator overlap and lifec
    - Clear `this.inFlightJobs`.
    - Reset `this.currentTick = 0`.
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `node --test tests/core/tickManager.test.ts`
 Expected: PASS (all tests including new overlap and teardown tests pass)
 
-- [ ] **Step 3: Commit implementation**
+- [x] **Step 3: Commit implementation**
 
 ```bash
 git add packs/BP/scripts/core/tickManager.ts
@@ -107,12 +107,12 @@ git commit -m "feat(core): compose TickManager with JobRunner for overlap suppre
 **Files:**
 - Test: Full repository
 
-- [ ] **Step 1: Run full verification suite**
+- [x] **Step 1: Run full verification suite**
 
 Run: `npm run check`
 Expected: Typecheck clean, lint clean, all tests pass.
 
-- [ ] **Step 2: Verify git status and log**
+- [x] **Step 2: Verify git status and log**
 
 Run: `git status && git log -2`
 Expected: Working tree clean, author `fyreic`, no agent trailers.
