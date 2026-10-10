@@ -188,7 +188,8 @@ export function* inventorySweepJob(): Generator<void, void, unknown> {
 }
 
 export function processPlayers(): void {
-    for (const _ of inventorySweepJob()) {
+    const job = inventorySweepJob();
+    while (!job.next().done) {
         // Drain synchronously for test harnesses or explicit sweeps
     }
 }
