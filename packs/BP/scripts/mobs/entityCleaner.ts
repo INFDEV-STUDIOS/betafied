@@ -1,12 +1,14 @@
 import { world, ItemStack, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
+import { isForeignOwnedEntity } from "../core/compatibilityPolicy.js";
 import { resolveDropId } from "../core/normalizer.js";
 import { tickManager } from "../core/tickManager.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 100,
-    CHECK_RADIUS: 32
+    CHECK_RADIUS: 32,
+    ENTITIES_PER_TICK: 20
 });
 
 /**
@@ -15,6 +17,7 @@ const CONFIG = Object.freeze({
  */
 export function* cleanerJob(): Generator<void, void, unknown> {
     const players = world.getAllPlayers();
+    let processed = 0;
 
     for (const player of players) {
         if (!player.isValid) continue;
@@ -27,6 +30,10 @@ export function* cleanerJob(): Generator<void, void, unknown> {
 
             for (const ent of entities) {
                 if (!ent.isValid) continue;
+
+                // The spawn gate spares another addon's decor; this sweep has to spare it too, or it
+                // is deleted a few seconds later instead of at spawn.
+                if (isForeignOwnedEntity(ent)) continue;
 
                 if (isVanillaId(ent.typeId) && !isBetaEntity(ent.typeId)) {
                     ent.remove();
@@ -46,7 +53,12 @@ export function* cleanerJob(): Generator<void, void, unknown> {
                         }
                     }
                 }
-                yield;
+
+                processed++;
+                if (processed % CONFIG.ENTITIES_PER_TICK === 0) {
+                    yield;
+                    if (!player.isValid) break;
+                }
             }
         } catch (e) {
             reportError({
