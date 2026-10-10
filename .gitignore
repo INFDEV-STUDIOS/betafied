@@ -15,8 +15,7 @@ build/
 *.mcworld
 
 # AI & Agent configurations, prompts, and planning artifacts
-# AGENTS.md is deliberately absent: agent tooling hides files matched here, so it is
-# ignored per-clone via .git/info/exclude instead. Re-apply it after a fresh clone.
+AGENTS.md
 CLAUDE.md
 GEMINI.md
 .agents/

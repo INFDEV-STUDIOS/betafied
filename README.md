@@ -80,3 +80,17 @@ The TypeScript runtime uses a **pure side-effect self-registration pattern**:
 - `npm run push:world`: Replaces a world on the hosted server with a local `.mcworld`. The pack pair already on the server wins, so the world keeps loading the packs installed there; the world's `level.dat` is patched for Beta APIs, uploaded to a staging directory, verified, and only then swapped in, leaving the replaced world beside it under a timestamped name. The server must be stopped and `--yes` passed — the header of `scripts/pushWorld.mjs` documents every flag.
 - `npm run release`: Creates or updates the GitHub release for the version in `package.json`, titling it `Betafied <version>` with notes taken from the [CHANGELOG.md](CHANGELOG.md) entry and the built `build/<version>/` pack assets attached. Pass `--dry-run` to print the notes without touching GitHub.
 - `npm run wipe-nether`: Filters already-generated Nether chunks out of a live world's LevelDB over SFTP. See [SECURITY.md](SECURITY.md) for the credentials it needs.
+
+---
+
+## AI Tooling Disclosure
+
+Betafied is developed with AI coding agents. The maintainer uses them for:
+
+- Writing and extending the test suite
+- Managing merges and release preparation
+- Codebase health scans with [desloppify](https://github.com/peteromallet/desloppify), which flags AI-generated technical debt so it can be cleaned up as each area changes
+
+Agent output goes through `npm run check`, the automated code-health and lint gates, and maintainer review before it is merged. Agents do not create commits or push. The maintainer authors every commit.
+
+The code descends from cen0b's original Betafied add-on. Its systems were rewritten during the 4.0 engine rewrite and later releases.
