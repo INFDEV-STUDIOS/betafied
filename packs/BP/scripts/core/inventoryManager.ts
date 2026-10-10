@@ -18,6 +18,7 @@ import { eventBus } from "./eventBus.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 1,
+    PLAYERS_PER_TICK: 2,
     // The engine announces an inventory change, so the sweep no longer has to assume every player's
     // inventory moved on every tick. These two intervals are the safety nets behind that signal: the
     // item-change event reports the main inventory and hotbar but not the equipment slots, and neither
@@ -155,7 +156,7 @@ function sweepPlayer(player: Player, fullSweep: boolean, equipmentSweep: boolean
     else if (equipmentSweep) processEquipment(player);
 }
 
-export function processPlayers(): void {
+export function* inventorySweepJob(): Generator<void, void, unknown> {
     const tick = system.currentTick;
     const fullSweep = tick % CONFIG.FULL_SWEEP_INTERVAL === 0;
     const equipmentSweep = tick % CONFIG.EQUIPMENT_SWEEP_INTERVAL === 0;
@@ -165,6 +166,7 @@ export function processPlayers(): void {
     // to find no inventory to look at.
     if (!fullSweep && !equipmentSweep && dirtyInventories.size === 0) return;
 
+    let processed = 0;
     for (const player of world.getAllPlayers()) {
         if (!player.isValid) continue;
 
@@ -177,10 +179,21 @@ export function processPlayers(): void {
                 target: player.name
             }, e);
         }
+
+        processed++;
+        if (processed % CONFIG.PLAYERS_PER_TICK === 0) {
+            yield;
+        }
     }
 }
 
-tickManager.register("inventoryManager", CONFIG.CHECK_INTERVAL, processPlayers, 0);
+export function processPlayers(): void {
+    for (const _ of inventorySweepJob()) {
+        // Drain synchronously for test harnesses or explicit sweeps
+    }
+}
+
+tickManager.register("inventoryManager", CONFIG.CHECK_INTERVAL, inventorySweepJob, 0);
 
 type ItemNormalizationAction =
     | { type: "keep" }
