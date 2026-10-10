@@ -24,7 +24,8 @@ import type {
     BlockContainerOpenedAfterEvent,
     ContainerAccessSource,
     PlayerInteractWithBlockBeforeEvent,
-    PlayerLeaveAfterEvent
+    PlayerLeaveAfterEvent,
+    PlayerPlaceBlockBeforeEvent
 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError, runCatching } from "../core/errorReporter.js";
@@ -195,6 +196,27 @@ export function planPair(
     return plans.find(plan => plan.latch === placedLatch) ?? plans[0];
 }
 
+/**
+ * Whether a chest may stand in a cell given the chests already touching it.
+ *
+ * Beta's `BlockChest.canPlaceBlockAt` counted the chests sharing a face and refused to place at more
+ * than one, which is what keeps a chest from touching two others at once; its `isThereANeighborChest`
+ * refused when the neighbour was already half of a pair, which is why two large chests can never meet.
+ * A chest with no neighbour becomes a single, and a chest with exactly one single neighbour becomes
+ * that single's other half — everything else is refused.
+ *
+ * Only the four horizontal neighbours are handed in: a chest stacked directly on another is a
+ * separate container in the era and is never asked about here.
+ */
+export function planChestPlacement(neighbourTypeIds: readonly string[]): boolean {
+    let singles = 0;
+    for (const typeId of neighbourTypeIds) {
+        if (typeId === DOUBLE_CHEST_ID) return false;
+        if (typeId === SINGLE_CHEST_ID) singles++;
+    }
+    return singles <= 1;
+}
+
 export function mergeContents<T>(
     west: readonly (T | undefined)[],
     east: readonly (T | undefined)[]
@@ -306,6 +328,18 @@ export function planSweep(input: { shadowViewers: number; shadowHasItems: boolea
  */
 export function planOpenBlock(input: { half: ChestHalf; masterViewers: number; shadowViewers: number }): boolean {
     return input.half === "master" ? input.shadowViewers > 0 : input.masterViewers > 0;
+}
+
+/**
+ * Whether the era refuses to open the clicked half of a chest: a solid block directly above it. The
+ * check lived in `BlockChest.onBlockActivated` and looked only at the cell the player clicked, so the
+ * other half of a large chest is not consulted.
+ *
+ * A player crouching with an item in hand is not opening the chest — the engine hands that interaction
+ * to the item, placing it against the face — so the lid check must leave it alone.
+ */
+export function chestOpenBlocked(input: { placing: boolean; aboveSolid: boolean }): boolean {
+    return input.aboveSolid && !input.placing;
 }
 
 /**
@@ -830,6 +864,36 @@ function mergePair(master: Block, shadow: Block, state: CardinalDirection): void
     if (otherContainer) clearSlots(otherContainer, DOUBLE_CHEST_SLOTS);
 }
 
+/**
+ * `Block.isSolid` answers the era's `isBlockNormalCube` question closely: the engine reports a block
+ * solid when it is impassable, so a ladder, a fence and a torch leave the lid free while stone and
+ * glass do not. It is pre-release surface, which is why the read goes through `guard`.
+ */
+function solidAbove(block: Block): boolean {
+    const above = guard("cellAbove", () => block.offset({ x: 0, y: 1, z: 0 }));
+    if (!above.ok || !above.value) return false;
+
+    const aboveBlock = above.value;
+    // A chest is not a normal cube in the era: `renderAsNormalBlock` was false for it, so a vertical
+    // stack of chests never stopped the lower one opening.
+    if (aboveBlock.typeId === SINGLE_CHEST_ID || aboveBlock.typeId === DOUBLE_CHEST_ID) return false;
+
+    const solid = guard("cellAboveSolid", () => aboveBlock.isSolid);
+    return solid.ok && solid.value;
+}
+
+/** The types sharing a horizontal face with this cell, for the placement rule to judge. */
+function neighbourTypeIds(cell: Block): string[] {
+    const types: string[] = [];
+
+    for (const offset of NEIGHBOUR_OFFSETS) {
+        const found = guard(`placementNeighbour:${offset.x},${offset.z}`, () => cell.offset(offset));
+        if (found.ok && found.value) types.push(found.value.typeId);
+    }
+
+    return types;
+}
+
 function chestNeighbours(placed: Block): ChestNeighbour[] {
     const neighbours: ChestNeighbour[] = [];
 
@@ -842,6 +906,16 @@ function chestNeighbours(placed: Block): ChestNeighbour[] {
     }
 
     return neighbours;
+}
+
+function handleChestPlacement(event: PlayerPlaceBlockBeforeEvent): void {
+    if (event.permutationToPlace.type.id !== SINGLE_CHEST_ID) return;
+
+    // The event's block is the cell the chest would occupy, so the types sharing a face with it are
+    // the chests the new one would have to live beside.
+    if (!planChestPlacement(neighbourTypeIds(event.block))) {
+        event.cancel = true;
+    }
 }
 
 function handleChestPlaced(event: PlayerPlaceBlockAfterEvent): void {
@@ -885,6 +959,14 @@ function mergeChestAt(dimensionId: string, location: ChestLocation): void {
     mergePair(master, shadow, plan.state);
 }
 
+eventBus.onPlayerPlaceBlockBefore(event => {
+    try {
+        handleChestPlacement(event);
+    } catch (e) {
+        reportError({ system: "doubleChest", operation: "placementRule", target: SINGLE_CHEST_ID }, e);
+    }
+});
+
 eventBus.onPlayerPlaceBlock(event => {
     try {
         handleChestPlaced(event);
@@ -919,7 +1001,19 @@ eventBus.onPlayerLeave(event => {
 
 function handleInteractWithBlock(event: PlayerInteractWithBlockBeforeEvent): void {
     const block = event.block;
-    if (!block || block.typeId !== DOUBLE_CHEST_ID) return;
+    if (!block) return;
+
+    if (block.typeId === SINGLE_CHEST_ID || block.typeId === DOUBLE_CHEST_ID) {
+        // A crouch places the held item against the face instead of opening the container.
+        const placing = event.player.isSneaking && event.itemStack !== undefined;
+
+        if (chestOpenBlocked({ placing, aboveSolid: solidAbove(block) })) {
+            event.cancel = true;
+            return;
+        }
+    }
+
+    if (block.typeId !== DOUBLE_CHEST_ID) return;
 
     const ref = resolvePairRef(block);
     if (!ref) return;

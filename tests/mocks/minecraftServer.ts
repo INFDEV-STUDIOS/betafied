@@ -236,6 +236,7 @@ export const world = {
         playerInteractWithBlock: createEventSignal(registeredBeforeEvents, "playerInteractWithBlock"),
         playerInteractWithEntity: createEventSignal(registeredBeforeEvents, "playerInteractWithEntity"),
         playerBreakBlock: createEventSignal(registeredBeforeEvents, "playerBreakBlock"),
+        playerPlaceBlock: createEventSignal(registeredBeforeEvents, "playerPlaceBlock"),
         itemUse: createEventSignal(registeredBeforeEvents, "itemUse"),
         chatSend: createEventSignal(registeredBeforeEvents, "chatSend")
     },

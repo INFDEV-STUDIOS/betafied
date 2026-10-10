@@ -10,12 +10,14 @@ import {
     PAIR_STATE_BY_LATCH,
     SINGLE_CHEST_ID,
     SINGLE_CHEST_SLOTS,
+    chestOpenBlocked,
     clampSlots,
     dropOfflineViewers,
     hasAnyItem,
     mergeContents,
     pairKey,
     partHome,
+    planChestPlacement,
     planClose,
     planOpen,
     planOpenBlock,
@@ -453,6 +455,38 @@ describe("Chest relocation helpers", () => {
         assert.equal(partHome(1, 1), undefined, "two part 1s are not one pair");
         assert.equal(partHome(undefined, 1), undefined);
         assert.equal(partHome(0, undefined), undefined);
+    });
+
+    it("lets a chest stand alone or beside a single it can pair with", () => {
+        assert.equal(planChestPlacement([]), true, "a chest with no neighbour becomes a single");
+        assert.equal(
+            planChestPlacement([SINGLE_CHEST_ID]),
+            true,
+            "one single neighbour is the other half of the pair"
+        );
+        // Only the horizontal face neighbours are judged; a non-chest block never matters.
+        assert.equal(planChestPlacement(["minecraft:stone", "minecraft:air"]), true);
+    });
+
+    it("refuses a chest that would not become part of a pair", () => {
+        // Two singles beside the new cell means only one can pair, leaving the other touching a
+        // chest it is not half of - a dangling neighbour the era refused outright.
+        assert.equal(planChestPlacement([SINGLE_CHEST_ID, SINGLE_CHEST_ID]), false);
+        // A neighbour that is already half of a large chest can never take a second partner, which is
+        // why two large chests may not touch.
+        assert.equal(planChestPlacement([DOUBLE_CHEST_ID]), false);
+        assert.equal(planChestPlacement([SINGLE_CHEST_ID, DOUBLE_CHEST_ID]), false);
+        assert.equal(planChestPlacement([DOUBLE_CHEST_ID, DOUBLE_CHEST_ID]), false);
+    });
+
+    it("refuses to open a chest with a block resting on it", () => {
+        assert.equal(chestOpenBlocked({ placing: false, aboveSolid: true }), true);
+        assert.equal(chestOpenBlocked({ placing: false, aboveSolid: false }), false);
+        assert.equal(
+            chestOpenBlocked({ placing: true, aboveSolid: true }),
+            false,
+            "a crouched item being placed against the face is not the chest being opened"
+        );
     });
 
     it("clamps slot work to the count the container actually reports", () => {

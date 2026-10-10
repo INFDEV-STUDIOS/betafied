@@ -319,3 +319,16 @@ describe("Classic Block Contract - custom block names", () => {
         assert.deepEqual(untranslated, [], "every custom block needs a tile.<identifier>.name entry");
     });
 });
+
+describe("Classic Block Contract - Beta 1.7.3 crafting table", () => {
+    it("mines at the era's pace instead of a tuned-down time", () => {
+        // `seconds_to_destroy` is the block's hardness, not a literal time: the engine mines at 1.5x
+        // it. The workbench had been tuned down for gameplay and no longer matched the era, where it
+        // was as slow to break as a chest.
+        const table = blockOf("crafting_table").components["minecraft:destructible_by_mining"].seconds_to_destroy;
+        const chest = blockOf("chest").components["minecraft:destructible_by_mining"].seconds_to_destroy;
+
+        assert.equal(table, 2.5);
+        assert.equal(table, chest, "the workbench and the chest shared the era's 2.5 hardness");
+    });
+});

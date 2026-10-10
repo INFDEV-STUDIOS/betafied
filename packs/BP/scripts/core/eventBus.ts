@@ -32,6 +32,7 @@ import type {
     PlayerInventoryItemChangeAfterEvent,
     PlayerLeaveAfterEvent,
     PlayerPlaceBlockAfterEvent,
+    PlayerPlaceBlockBeforeEvent,
     PlayerSpawnAfterEvent
 } from "@minecraft/server";
 import { runCatching } from "./errorReporter.js";
@@ -126,6 +127,13 @@ class EventBus {
         return this.subscribe("playerPlaceBlock", callback, priority);
     }
 
+    /**
+     * Fires before a block is placed, so a handler can veto the placement by setting `cancel`.
+     */
+    onPlayerPlaceBlockBefore(callback: (event: PlayerPlaceBlockBeforeEvent) => void, priority: number = 0): () => void {
+        return this.subscribe("playerPlaceBlockBefore", callback, priority);
+    }
+
     onPlayerBreakBlock(callback: (event: PlayerBreakBlockAfterEvent) => void, priority: number = 0): () => void {
         return this.subscribe("playerBreakBlock", callback, priority);
     }
@@ -194,6 +202,7 @@ class EventBus {
         world.beforeEvents.playerInteractWithEntity.subscribe((e) => this.dispatch("playerInteractWithEntity", e));
         world.beforeEvents.itemUse.subscribe((e) => this.dispatch("itemUse", e));
         world.beforeEvents.playerBreakBlock.subscribe((e) => this.dispatch("playerBreakBlockBefore", e));
+        world.beforeEvents.playerPlaceBlock.subscribe((e) => this.dispatch("playerPlaceBlockBefore", e));
 
         world.afterEvents.itemUse.subscribe((e) => this.dispatch("itemUseAfter", e));
         world.afterEvents.entitySpawn.subscribe((e) => this.dispatch("entitySpawn", e));
