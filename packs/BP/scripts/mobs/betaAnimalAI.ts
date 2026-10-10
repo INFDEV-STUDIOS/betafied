@@ -190,22 +190,24 @@ function tryAnimalHop(entity: Entity, dimension: Dimension, currentTick: number)
 }
 
 export function* animalJumpJob(): Generator<void, void, unknown> {
-    const players = world.getAllPlayers();
-    if (players.length === 0) return;
+    const playerIds = world.getAllPlayers().map(p => p.id);
+    if (playerIds.length === 0) return;
 
     const currentTick = tickManager.getCurrentTick();
     const processedIds = new Set<string>();
     let evaluated = 0;
 
-    for (const player of players) {
-        if (!player.isValid) continue;
+    for (const playerId of playerIds) {
+        const player = world.getAllPlayers().find(p => p.id === playerId);
+        if (!player || !player.isValid) continue;
 
-        let entities: Entity[];
+        let animalIds: string[];
         try {
-            entities = player.dimension.getEntities({
+            const nearby = player.dimension.getEntities({
                 location: player.location,
                 maxDistance: CONFIG.PLAYER_RADIUS
             });
+            animalIds = nearby.filter(e => PASSIVE_MOBS.has(e.typeId)).map(e => e.id);
         } catch (e) {
             reportError({
                 system: "betaAnimalAI",
@@ -215,15 +217,17 @@ export function* animalJumpJob(): Generator<void, void, unknown> {
             continue;
         }
 
-        for (const entity of entities) {
-            if (!player.isValid) break;
-            if (!entity.isValid) continue;
-            if (!PASSIVE_MOBS.has(entity.typeId)) continue;
+        for (const animalId of animalIds) {
+            const currentPlayer = world.getAllPlayers().find(p => p.id === playerId);
+            if (!currentPlayer || !currentPlayer.isValid) break;
+
+            const entity = world.getEntity(animalId);
+            if (!entity || !entity.isValid) continue;
             if (processedIds.has(entity.id)) continue;
             processedIds.add(entity.id);
 
             try {
-                tryAnimalHop(entity, player.dimension, currentTick);
+                tryAnimalHop(entity, currentPlayer.dimension, currentTick);
             } catch (e) {
                 reportError({
                     system: "betaAnimalAI",

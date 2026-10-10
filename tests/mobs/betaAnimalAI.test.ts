@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { animalJumpJob } from "../../packs/BP/scripts/mobs/betaAnimalAI.js";
-import { resetMocks, world, Player, mockPlayers } from "../mocks/minecraftServer.js";
+import { resetMocks, world, Player, mockPlayers, mockEntities } from "../mocks/minecraftServer.js";
 
 describe("Beta Animal AI Generator Batching", () => {
     beforeEach(() => {
@@ -50,5 +50,36 @@ describe("Beta Animal AI Generator Batching", () => {
         assert.doesNotThrow(() => {
             while (!job.next().done) {}
         });
+    });
+
+    it("re-resolves animals by ID across yield boundaries without holding live references", () => {
+        const overworld = world.getDimension("minecraft:overworld") as any;
+        const player = new Player("steve");
+        player.dimension = overworld;
+        player.location = { x: 0, y: 64, z: 0 };
+        mockPlayers.push(player);
+
+        const animals: any[] = [];
+        for (let i = 0; i < 15; i++) {
+            animals.push(overworld.spawnEntity("minecraft:pig", { x: 0, y: 64, z: 0 }));
+        }
+
+        const job = animalJumpJob();
+        job.next(); // First batch of 10
+
+        // Despawn remaining animals and detect if stale references are touched
+        let staleAccessed = false;
+        for (let i = 10; i < 15; i++) {
+            mockEntities.delete(animals[i].id);
+            Object.defineProperty(animals[i], "typeId", {
+                get() {
+                    staleAccessed = true;
+                    return "minecraft:pig";
+                }
+            });
+        }
+
+        while (!job.next().done) {}
+        assert.equal(staleAccessed, false, "stale animal handles from earlier ticks must not be accessed");
     });
 });
