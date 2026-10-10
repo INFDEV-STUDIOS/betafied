@@ -9,6 +9,7 @@ import {
   readLevelDat,
 } from "../../scripts/lib/levelDat.mjs";
 import {
+  alignInstalledVersions,
   packVersionDrift,
   parsePackPair,
   resolvePackPair,
@@ -127,5 +128,20 @@ describe("world pack pair resolution", () => {
     assert.match(drift[0], /declares 5\.2\.0 but the server has 5\.3\.0/);
     assert.match(drift[1], /not installed on the server/);
     assert.deepEqual(packVersionDrift([farLand], installed), []);
+  });
+
+  it("aligns declared pack versions with what the server has installed", () => {
+    const installed = [
+      { uuid: betafied.pack_id, version: [5, 3, 2] },
+      { uuid: farLand.pack_id, version: [1, 1, 0] },
+    ];
+    const stalePair = [pack(betafied.pack_id, [4, 3, 0]), farLand, notInstalled];
+    const aligned = alignInstalledVersions(stalePair, installed);
+
+    assert.deepEqual(aligned, [
+      pack(betafied.pack_id, [5, 3, 2]),
+      farLand,
+      notInstalled,
+    ]);
   });
 });

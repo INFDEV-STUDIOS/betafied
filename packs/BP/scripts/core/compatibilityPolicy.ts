@@ -16,6 +16,7 @@
  * are asserted against `normalizeItem` in `tests/policy/compatibilityPolicy.test.ts`.
  */
 
+import type { Entity } from "@minecraft/server";
 import { isBetaEntity, isVanillaId, TERRAIN_PLANK_SPECIES } from "./betaRegistry.js";
 import { normalizeEntityDrop } from "./normalizer.js";
 
@@ -48,6 +49,29 @@ export function assessEntityCompatibility(typeId: string, droppedItemTypeId?: st
         return { allowed: false, reason: "banned_item_drop" };
     }
     return { allowed: true };
+}
+
+/**
+ * Tags by which another addon declares an entity it owns.
+ *
+ * A decor entity defeats the namespace rule: far.land's item display is a `minecraft:item` holding
+ * whatever the player spent on it, so `isVanillaId` is true and the drop gate rewrites or deletes it —
+ * the item is gone from the player's hand with nothing drawn in its place. The tag is the only thing
+ * that can tell the gate this item is not a drop. Doing so cannot break the rule that a ground item
+ * match the stack the inventory sweep keeps, because a display is never picked up: far.land cancels
+ * the pickup.
+ */
+export const FOREIGN_OWNED_TAGS: readonly string[] = Object.freeze([
+    "far:item_display",
+    "far:shop_display"
+]);
+
+/** Whether another addon owns this entity, and every destructive gate must leave it as shipped. */
+export function isForeignOwnedEntity(entity: Entity): boolean {
+    for (const tag of FOREIGN_OWNED_TAGS) {
+        if (entity.hasTag(tag)) return true;
+    }
+    return false;
 }
 
 export const BLOCK_BULK_REPLACEMENTS: readonly [string, string][] = [

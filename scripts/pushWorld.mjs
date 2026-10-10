@@ -25,6 +25,7 @@ import {
 } from "./lib/levelDat.mjs";
 import {
   WORLD_PACK_FILES,
+  alignInstalledVersions,
   packVersionDrift,
   parsePackPair,
   resolvePackPair,
@@ -45,7 +46,10 @@ const value = (name) => {
 };
 
 const WORLD = value("world") ?? "gargamel";
-const FILE = path.resolve(ROOT, value("file") ?? "gargamel_merged.mcworld");
+const defaultFile = fs.existsSync(path.resolve(ROOT, "gargamel_merged.mcworld"))
+  ? "gargamel_merged.mcworld"
+  : "gargamel_merged_unsmoothed.mcworld";
+const FILE = path.resolve(ROOT, value("file") ?? defaultFile);
 const WORK = path.resolve(ROOT, value("work") ?? ".betafied-world");
 const KEEP_PACKS = value("packs") !== "archive";
 const DRY_RUN = flag("dry-run");
@@ -189,10 +193,11 @@ async function prepare(serverPacks, installed) {
       archive: readPair(file),
       keep: KEEP_PACKS,
     });
-    fs.writeFileSync(path.join(EXTRACTED, file), serializePackPair(resolved.pair));
-    log(`${file}: ${resolved.pair.length} entries from ${resolved.source}`);
+    const aligned = alignInstalledVersions(resolved.pair, installed[kind]);
+    fs.writeFileSync(path.join(EXTRACTED, file), serializePackPair(aligned));
+    log(`${file}: ${aligned.length} entries from ${resolved.source}`);
     for (const dropped of resolved.dropped) log(`   dropped ${dropped} (not on the server)`);
-    for (const drift of packVersionDrift(resolved.pair, installed[kind])) log(`   warning: ${drift}`);
+    for (const drift of packVersionDrift(aligned, installed[kind])) log(`   warning: ${drift}`);
   }
 
   const datPath = path.join(EXTRACTED, "level.dat");

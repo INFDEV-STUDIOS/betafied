@@ -222,8 +222,13 @@ async function syncScriptPermissions(sftp, packUuid) {
       await sftp.put(Buffer.from(JSON.stringify(permObj, null, 2)), permPath);
     }
 
-    if (packUuid) {
-      const packDir = `/config/${packUuid}`;
+    const targetUuids = [
+      packUuid,
+      "3cdb2ddf-662e-4f8f-a0a1-1293b91ccb2f",
+      "7a359871-33da-4702-8a91-4cfcb07604a1",
+    ].filter(Boolean);
+    for (const uuid of targetUuids) {
+      const packDir = `/config/${uuid}`;
       await sftp.mkdir(packDir, true);
       await sftp.put(Buffer.from(JSON.stringify(permObj, null, 2)), `${packDir}/permissions.json`);
     }

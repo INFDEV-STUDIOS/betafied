@@ -1,12 +1,15 @@
 import { world, system, BlockPermutation, BlockVolume, Dimension } from "@minecraft/server";
 import type { Block, BlockFilter, BlockLocationIterator } from "@minecraft/server";
-import { BETA_BLOCK_IDS } from "../core/betaRegistry.js";
+import { BETA_BLOCK_IDS, POST_BETA_WOOD_SPECIES } from "../core/betaRegistry.js";
 import { BLOCK_BULK_REPLACEMENTS, BLOCK_FINE_REPLACEMENTS } from "../core/compatibilityPolicy.js";
 import { normalizeBlock } from "../core/normalizer.js";
+import { reportError } from "../core/errorReporter.js";
 import { tickManager } from "../core/tickManager.js";
 import { BETA_FLOOR_Y, OVERWORLD_ID } from "../core/betaConstants.js";
 
-const SCRUBBED_AT = new Map<string, number>();
+// Holds the tick each chunk next becomes due, not the tick it was last swept: the jitter is then paid
+// once when the chunk is marked instead of on every lookup.
+const SCRUB_DUE_AT = new Map<string, number>();
 const MAX_TRACKED_CHUNKS = 8192;
 const CHUNKS_PER_TICK_LIMIT = 1;
 
@@ -43,6 +46,20 @@ const CHUNK_SIZE = 16;
 // ten times a minute, forever, which is what the profiler showed dominating the server tick.
 const REVERIFY_INTERVAL_TICKS = 2400;
 
+// A player's nine chunks are marked within one pass of each other, so without this they would all
+// come due on the same tick - and on a server every player's neighbourhood would land with them,
+// spending the entire budget on one burst. Spreading each chunk's deadline over this window turns
+// the re-verify into a trickle that the one-chunk-per-pass budget can actually absorb.
+const REVERIFY_SPREAD_TICKS = 600;
+
+function reverifyOffset(key: string): number {
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        hash = (hash * 31 + key.charCodeAt(i)) | 0;
+    }
+    return (hash >>> 0) % REVERIFY_SPREAD_TICKS;
+}
+
 const BETA_FLOOR_LAYERS = 2;
 
 /**
@@ -72,23 +89,50 @@ const HORIZONTAL_LOG_FILTER: BlockFilter = buildHorizontalLogFilter();
 /**
  * Types the scrubber is allowed to walk past.
  *
- * This is the negative filter for every volume query below: the Beta registry plus the engine's air
- * variants. A block is therefore handed back for inspection exactly when the scrubber does not already
- * recognize it as authentic, which keeps the inverse allowlist in `betaRegistry` authoritative as the
- * game grows - a type shipped by a future update is surfaced instead of silently surviving - without
- * anybody maintaining a second list.
+ * Negative filter for the fine pass volume query: authentic Beta blocks resolved against the
+ * engine's block registry. Passing unregistered or item-only identifiers causes Bedrock's native
+ * filter parser to throw, so candidate IDs are validated against BlockPermutation.resolve.
  *
  * `minecraft:planks` is deliberately absent: it is the one modern block that gets retyped rather than
  * removed, and the query has to report it for that to happen.
  */
-const UNTOUCHED_TYPES: string[] = [
-    "minecraft:air",
-    "minecraft:cave_air",
-    "minecraft:void_air",
-    ...BETA_BLOCK_IDS
-];
+function buildUntouchedFilter(): BlockFilter {
+    const excludeTypes: string[] = [];
+    const candidates = new Set<string>([
+        "minecraft:air",
+        ...BETA_BLOCK_IDS,
+        "minecraft:reeds",
+        "minecraft:deadbush",
+        "minecraft:web",
+        "minecraft:mob_spawner",
+        "minecraft:unpowered_repeater",
+        "minecraft:powered_repeater",
+        "minecraft:stone_block_slab",
+        "minecraft:brick_block"
+    ]);
 
-const UNTOUCHED_FILTER: BlockFilter = Object.freeze({ excludeTypes: UNTOUCHED_TYPES });
+    for (const id of candidates) {
+        try {
+            BlockPermutation.resolve(id);
+            excludeTypes.push(id);
+        } catch {
+            // Unregistered block identifier in current engine build (e.g. item ID or Java alias).
+        }
+    }
+
+    return Object.freeze({ excludeTypes });
+}
+
+const UNTOUCHED_FILTER: BlockFilter = buildUntouchedFilter();
+
+/**
+ * Reports anything in a volume that is not bedrock.
+ *
+ * The floor's Y=0 base is written as one unbroken bedrock slab, so testing that slab for a
+ * non-bedrock block is a cheap "this chunk is sealed already" probe: 256 blocks against the ~120
+ * native fills the ragged cap above it costs to lay down.
+ */
+const NOT_BEDROCK_FILTER: BlockFilter = Object.freeze({ excludeTypes: ["minecraft:bedrock"] });
 
 /**
  * Every type the scrubber knows how to rewrite, in one group-tested probe list.
@@ -101,10 +145,70 @@ const UNTOUCHED_FILTER: BlockFilter = Object.freeze({ excludeTypes: UNTOUCHED_TY
  * them. On a target named in both tables the first entry wins, so the deliberate fine-table
  * backstops do not emit a duplicate fill.
  */
+/**
+ * Block ids for the rest of the post-Beta wood building set, derived rather than hand-listed.
+ *
+ * The two tables enumerate the modern blocks that *generate* as terrain. A post-Beta species also
+ * reaches the world as everything else it can be built from - stairs, slabs, fences, doors, saplings,
+ * and the log/stem spellings the table does not carry - and those used to be caught only by the fine
+ * pass's reverse query, which the pinned module version does not have. Generating the ids from the
+ * one owner of the species list keeps a new species' whole building set covered in one move, and each
+ * candidate's replacement is read back off the normalizer rather than restated here.
+ */
+/**
+ * The block every wood species' planks are retyped onto.
+ *
+ * Taken from the bulk table rather than repeated, so the generated post-Beta species and the species
+ * the table already carries cannot drift apart on it.
+ */
+const PLANKS_TARGET = BLOCK_BULK_REPLACEMENTS.find(([target]) => target.endsWith("_planks"))?.[1] ?? "minecraft:planks";
+
+function buildPostBetaWoodTargets(): readonly (readonly [string, string])[] {
+    const suffixes = [
+        "planks", "log", "stem", "wood", "hyphae",
+        "fence", "fence_gate", "stairs", "slab",
+        "leaves", "door", "trapdoor", "sign", "sapling"
+    ];
+
+    const targets: [string, string][] = [];
+    for (const species of POST_BETA_WOOD_SPECIES) {
+        for (const suffix of suffixes) {
+            const id = `minecraft:${species}_${suffix}`;
+
+            // Planks are the one block the scrubber retypes rather than replaces - Bedrock
+            // consolidates the wood types into a single `planks` block whose `wood_type` the fine
+            // pass sets - so they cannot go through the normalizer's item-side `oak_planks`. Read the
+            // target back off the table so a generated species and a terrain species cannot disagree.
+            if (suffix === "planks") {
+                targets.push([id, PLANKS_TARGET]);
+                continue;
+            }
+
+            const norm = normalizeBlock(id);
+            if (norm.action === "keep" || !norm.targetId) continue;
+            targets.push([id, norm.targetId]);
+        }
+
+        for (const spelling of [`stripped_${species}_log`, `stripped_${species}_stem`]) {
+            const id = `minecraft:${spelling}`;
+            const norm = normalizeBlock(id);
+            if (norm.action === "keep" || !norm.targetId) continue;
+            targets.push([id, norm.targetId]);
+        }
+    }
+    return targets;
+}
+
 function buildScrubTargets(): readonly (readonly [string, string])[] {
     const seen = new Set<string>();
     const targets: [string, string][] = [];
-    for (const [target, replacement] of [...BLOCK_BULK_REPLACEMENTS, ...Object.entries(BLOCK_FINE_REPLACEMENTS)]) {
+    for (const [target, replacement] of [
+        ...BLOCK_BULK_REPLACEMENTS,
+        ...Object.entries(BLOCK_FINE_REPLACEMENTS),
+        // Last, so the tables keep their deliberate choices: `mangrove_planks` targets the retyped
+        // `planks` rather than the normalizer's plain oak, and the first entry for a target wins.
+        ...buildPostBetaWoodTargets()
+    ]) {
         if (seen.has(target)) continue;
         seen.add(target);
         targets.push([target, replacement]);
@@ -133,18 +237,18 @@ function bulkRangeFilter(lo: number, hi: number): BlockFilter {
 const BULK_BY_TARGET = new Map(SCRUB_TARGETS);
 
 function markScrubbed(key: string, tick: number): void {
-    if (SCRUBBED_AT.size >= MAX_TRACKED_CHUNKS) {
-        const oldest = SCRUBBED_AT.keys().next().value;
+    if (SCRUB_DUE_AT.size >= MAX_TRACKED_CHUNKS) {
+        const oldest = SCRUB_DUE_AT.keys().next().value;
         if (oldest !== undefined) {
-            SCRUBBED_AT.delete(oldest);
+            SCRUB_DUE_AT.delete(oldest);
         }
     }
-    SCRUBBED_AT.set(key, tick);
+    SCRUB_DUE_AT.set(key, tick + REVERIFY_INTERVAL_TICKS + reverifyOffset(key));
 }
 
 function needsScrub(key: string, tick: number): boolean {
-    const lastScrubbed = SCRUBBED_AT.get(key);
-    return lastScrubbed === undefined || tick - lastScrubbed >= REVERIFY_INTERVAL_TICKS;
+    const dueAt = SCRUB_DUE_AT.get(key);
+    return dueAt === undefined || tick >= dueAt;
 }
 
 // A sweep yields across ticks, so the scheduler fires the next pass before the current one has
@@ -216,6 +320,24 @@ export function solidifyBetaFloor(dim: Dimension, cx: number, cz: number): void 
 
     const originX = cx * CHUNK_SIZE;
     const originZ = cz * CHUNK_SIZE;
+
+    // The floor is deterministic per chunk and its base layer is always a full bedrock slab, so
+    // "Y=0 holds nothing but bedrock" answers "was this chunk sealed already" for 256 blocks. The
+    // cap above the base is ~120 separate fills - the single largest native cost the scrubber had -
+    // and without this gate every re-verify of an already-sealed chunk paid for all of them again.
+    // A failed fill leaves the slab unsealed, so the probe stays true and the seal is retried.
+    if (
+        !containsBlocksIn(
+            dim,
+            new BlockVolume(
+                { x: originX, y: BETA_FLOOR_Y, z: originZ },
+                { x: originX + CHUNK_SIZE - 1, y: BETA_FLOOR_Y, z: originZ + CHUNK_SIZE - 1 }
+            ),
+            NOT_BEDROCK_FILTER
+        )
+    ) {
+        return;
+    }
 
     // A solid base first: with the sub-zero column no longer ballasted, a gap here would drop the
     // player onto native deepslate or, in a flat world, into the void.
@@ -374,14 +496,6 @@ function collectBulkTargets(dimension: Dimension, volume: BlockVolume, lo: numbe
     collectBulkTargets(dimension, volume, mid + 1, hi, present);
 }
 
-function getMatchingBlocks(dimension: Dimension, volume: BlockVolume): BlockLocationIterator | null {
-    try {
-        return dimension.getBlocks(volume, UNTOUCHED_FILTER, true).getBlockLocationIterator();
-    } catch {
-        return null;
-    }
-}
-
 /**
  * Converts the post-Beta blocks in one band with a native filtered fill.
  *
@@ -407,10 +521,25 @@ function runBulkReplacements(dimension: Dimension, volume: BlockVolume, cx: numb
 }
 
 /**
+ * Whether the volume-query refusal has already been reported this session.
+ *
+ * `Dimension.getBlocks` reads as a function on the object and type-checks against the pinned module
+ * version, and the engine still refuses the call: a bare native error with no message, on every band
+ * of every chunk. Repeating that puts a line in the log on each sweep for a condition that cannot
+ * change while the server is up, so it is reported once.
+ *
+ * Only the reporting is latched, not the attempt. Disabling the call needs a verdict about a
+ * dimension, and a module-level one would be shared across all of them; a single transient refusal -
+ * a chunk unloaded between the load gate and the query - would then silently switch off a query that
+ * works on another build. The call costs nothing but the throw.
+ */
+let fineQueryRefusalReported = false;
+
+/**
  * Scans and scrubs one chunk, one band at a time.
  *
- * Returns false when a band could not be read (its chunk unloaded mid-sweep), which leaves the chunk
- * unmarked so the next pass retries it rather than declaring it clean.
+ * Returns false when the chunk is not loaded, which leaves it unmarked so the next pass retries it
+ * rather than declaring it clean.
  */
 export function* scrubFineDetails(dimension: Dimension, cx: number, cz: number): Generator<void, boolean, unknown> {
     const { min: yMin, max: yMax } = dimension.heightRange;
@@ -424,7 +553,17 @@ export function* scrubFineDetails(dimension: Dimension, cx: number, cz: number):
     // A chunk is only re-walked after the re-verify window, so an unloaded chunk must never be marked
     // clean: the volume queries below report "nothing to do" for ground that simply was not there to
     // read, which would pair with the success mark and lose the chunk until the window elapsed.
+    //
+    // This gate is the only thing that decides whether the chunk is retried. A query the engine
+    // declines, or one block that refuses its write, is a failure of that band alone - letting either
+    // cost the chunk its success mark is what pinned the scrubber: a chunk that can never report
+    // success is re-swept whole on every pass, forever, which is exactly what the profile showed.
     if (!dimension.isChunkLoaded({ x: x1, y: startY, z: z1 })) return false;
+
+    let refusedBands = 0;
+    let refusedReads = 0;
+    let refusedBlocks = 0;
+    let firstError: unknown;
 
     for (let y = startY; y <= yMax; y += BAND_HEIGHT) {
         const bandTop = Math.min(y + BAND_HEIGHT - 1, yMax);
@@ -435,34 +574,82 @@ export function* scrubFineDetails(dimension: Dimension, cx: number, cz: number):
         // The fine pass only has to look at what the bulk table could not express, so the engine
         // hands back the matching blocks instead of the scrubber walking all 32768 of them. What
         // remains is normally a few hundred edits per chunk rather than a 32768-call column read.
-        const matches = getMatchingBlocks(dimension, volume);
-        if (matches === null) return false;
-
-        let inspected = 0;
-        for (const location of matches) {
-            try {
-                const block = dimension.getBlock(location);
-                if (block) applyFineScrub(block);
-            } catch {
-                // A block whose chunk unloaded mid-band is retried on the next pass.
-                return false;
+        let matches: BlockLocationIterator | null = null;
+        try {
+            matches = dimension.getBlocks(volume, UNTOUCHED_FILTER, true).getBlockLocationIterator();
+        } catch (error) {
+            refusedBands++;
+            // Not routed through `firstError`: the query reports itself here, so the chunk-level line
+            // below stays about the anomalies that are actually specific to this chunk.
+            if (!fineQueryRefusalReported) {
+                fineQueryRefusalReported = true;
+                reportError(
+                    {
+                        system: "chunkScrubber",
+                        operation: "fineScrubQuery",
+                        target: `${cx},${cz}`,
+                        details: { bandBottom: y, refusedBands, refusedBlocks }
+                    },
+                    error
+                );
             }
+        }
 
-            // Only reachable for a pathological chunk; the yield keeps one band off the watchdog.
-            if (++inspected % 512 === 0) yield;
+        if (matches !== null) {
+            let inspected = 0;
+            try {
+                for (const location of matches) {
+                    try {
+                        const block = dimension.getBlock(location);
+                        if (block) applyFineScrub(block);
+                    } catch (error) {
+                        refusedBlocks++;
+                        firstError ??= error;
+                    }
+
+                    // Only reachable for a pathological chunk; the yield keeps one band off the watchdog.
+                    if (++inspected % 512 === 0) yield;
+                }
+            } catch (error) {
+                // The iterator itself gave up mid-band, so the band is left half-inspected. The next
+                // re-verify finishes it; the chunk still counts as read.
+                refusedReads++;
+                firstError ??= error;
+            }
         }
 
         yield;
     }
 
+    // Only in-band anomalies reach here - a refused query has already reported itself, once for the
+    // session - so this stays a per-chunk line, which is the cadence those are actually worth.
+    if (firstError !== undefined) {
+        reportError(
+            { system: "chunkScrubber", operation: "fineScrub", target: `${cx},${cz}`, details: { refusedReads, refusedBlocks } },
+            firstError
+        );
+    }
+
     return true;
 }
 
+// The pass budget is spent in player order, so always starting from the first player would let one
+// player's ring eat the whole budget while everyone else's chunks waited - on a server the later
+// players were never serviced at all. Rotating the starting point gives each player the ring in turn.
+let playerCursor = 0;
+
 export function* chunkScanJob(): Generator<void, void, unknown> {
-    const tick = system.currentTick;
     let scrubbed = 0;
 
-    for (const player of world.getAllPlayers()) {
+    const players = world.getAllPlayers();
+    const playerCount = players.length;
+    if (playerCount === 0) return;
+
+    const start = playerCount > 1 ? playerCursor % playerCount : 0;
+    playerCursor = playerCount > 1 ? (start + 1) % playerCount : 0;
+
+    for (let i = 0; i < playerCount; i++) {
+        const player = players[(start + i) % playerCount];
         if (scrubbed >= CHUNKS_PER_TICK_LIMIT) return;
         if (!player.isValid) continue;
 
@@ -478,6 +665,9 @@ export function* chunkScanJob(): Generator<void, void, unknown> {
             const chunkZ = centerZ + dz;
             const key = `${dimension.id}:${chunkX},${chunkZ}`;
 
+            // Read per chunk rather than once per pass: a sweep yields across ticks, so a tick
+            // captured at the top of the job would age while the pass is still running.
+            const tick = system.currentTick;
             if (!needsScrub(key, tick) || isInFlight(key, tick)) continue;
 
             // An unloaded chunk rejects the fill and cannot be read back. Skipping it keeps it off the

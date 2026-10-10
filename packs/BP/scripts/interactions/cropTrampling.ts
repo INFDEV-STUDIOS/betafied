@@ -328,14 +328,25 @@ function captureLanding(
     const top = Math.floor(feetY - CONFIG.WALKED_BLOCK_OFFSET);
     let remaining = budget;
 
+    // One reusable probe rather than a fresh vector per cell: this runs for every sampled entity on
+    // every pass, and the scan returns as soon as it finds farmland, so the watch is the only place
+    // that needs a location of its own.
+    const probe = { x: columnX, y: 0, z: columnZ };
+
     for (let depth = 0; depth < CONFIG.LANDING_SCAN_DEPTH && remaining > 0; depth++) {
-        const location = { x: columnX, y: top - depth, z: columnZ };
-        const block = dimension.getBlock(location);
+        const y = top - depth;
+        probe.y = y;
+        const block = dimension.getBlock(probe);
         remaining -= 1;
         if (block === undefined) return remaining;
 
-        if (block.typeId === FARMLAND_ID) {
-            const crop = dimension.getBlock({ x: columnX, y: location.y + 1, z: columnZ });
+        // `typeId` is a native property read, and the two branches below asked for it separately. The
+        // profile had those duplicate reads costing more than the block lookups they followed.
+        const typeId = block.typeId;
+
+        if (typeId === FARMLAND_ID) {
+            const location = { x: columnX, y, z: columnZ };
+            const crop = dimension.getBlock({ x: columnX, y: y + 1, z: columnZ });
             const watch: WatchedLanding = {
                 location,
                 farmland: block.permutation,
@@ -357,7 +368,7 @@ function captureLanding(
 
         // Anything else is a block the entity is standing on, or would land on instead of the farm
         // below it.
-        if (!PASSABLE_TYPES.has(block.typeId)) return remaining;
+        if (!PASSABLE_TYPES.has(typeId)) return remaining;
     }
 
     return remaining;
@@ -416,12 +427,15 @@ function pruneLandingWatch(dimension: Dimension, list: WatchedLanding[], nowTick
             continue;
         }
 
-        if (block.typeId === FARMLAND_ID) {
+        // Read once: every watched tile is probed on every pass, and the two tests below are the only
+        // uses.
+        const typeId = block.typeId;
+        if (typeId === FARMLAND_ID) {
             list[kept++] = watch;
             continue;
         }
 
-        if (block.typeId === DIRT_ID) restoreLanding(dimension, watch);
+        if (typeId === DIRT_ID) restoreLanding(dimension, watch);
     }
 
     list.length = kept;

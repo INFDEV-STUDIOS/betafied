@@ -1,5 +1,6 @@
 import { eventBus } from "./core/eventBus.js";
 import { tickManager } from "./core/tickManager.js";
+import "./core/jobRunner.js";
 
 // Import order is load-bearing, not alphabetical. The EventBus dispatches in
 // subscription order and short-circuits once a beforeEvent is cancelled, so the

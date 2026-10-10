@@ -1,6 +1,7 @@
 import { world, system, ItemStack, Dimension, Entity, EntityComponentTypes } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
+import { isForeignOwnedEntity } from "../core/compatibilityPolicy.js";
 import { resolveDropId } from "../core/normalizer.js";
 import { eventBus } from "../core/eventBus.js";
 
@@ -132,6 +133,10 @@ function handleItemDrop(entity: Entity): void {
 
 export function sanitizeWorldEntity(entity: Entity | undefined): void {
     if (!entity || !entity.isValid) return;
+
+    // Checked before the type branch: another addon's decor is often a `minecraft:item`, which the
+    // namespace rule cannot see, and the drop rewrite would delete it out from under its owner.
+    if (isForeignOwnedEntity(entity)) return;
 
     if (entity.typeId === "minecraft:item") {
         handleItemDrop(entity);

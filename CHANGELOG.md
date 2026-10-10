@@ -2,575 +2,441 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.4 — 2026-10-10
+
+5.4 focuses on server performance and Beta authenticity. Background maintenance now runs across ticks instead of all in one go, and armor, wolves, leaf drops, and the HUD are restored to Beta behavior.
+
+### Performance & Tick Safety
+
+- Added `JobRunner`, a shared wrapper that steps long-running sweeps across ticks through `system.runJob`, with error containment and tracked job handles.
+- Changed `TickManager` to run generator tasks through `JobRunner`, and to skip a task's next interval while its previous run is still stepping.
+- Changed `TickManager` teardown to cancel all in-flight jobs with `system.clearJob`.
+- Changed the inventory sweep to process 2 players per tick.
+- Changed the entity cleaner to process 20 entities per tick.
+- Changed the double chest session sweep to process 10 pairs per tick.
+- Changed boat collision checks to process 10 boats per tick.
+- Changed the animal hop scan to process 10 animals per tick.
+- Changed the fog sync to process 5 players per tick.
+- Changed batched sweeps to re-resolve entities and players by ID after each yield so no live handle is held across a tick.
+- Changed the nightmare light check into a tracked, cancellable job that re-resolves the player and bed from stored IDs and coordinates.
+
+### Chunk Scrubber
+
+- Added cleanup for the full post-Beta wood building set, including planks, stairs, slabs, fences, gates, doors, trapdoors, signs, saplings, logs, stems, wood, hyphae, leaves, and stripped logs and stems, generated from the shared species list.
+- Changed the fine-pass block filter to validate each identifier against `BlockPermutation.resolve` before use, because Bedrock's filter parser rejects unregistered IDs.
+- Changed chunk re-verification to spread each chunk's next check across a 600-tick window so a player's nine chunks no longer come due on the same tick.
+- Changed the one-chunk-per-pass budget to rotate its starting player so one player's chunks cannot starve the others.
+- Changed the bedrock floor seal to skip a chunk whose Y=0 layer is already solid bedrock instead of re-laying the ragged cap above it.
+- Changed the fine scrub so a refused volume query or a single refused block write is reported for that band and no longer un-marks the whole chunk.
+- Changed the refused-query error to be reported once per session instead of once per band.
+
+### Beta Parity
+
+- Changed the armor value to Beta's `((points - 1) * remaining / max) + 1` formula.
+- Changed armor damage absorption to Beta's integer math, carrying the remainder into the next hit.
+- Removed wolf breeding, collar dyeing, and leashing so wolves match Beta.
+- Fixed the engine's leaf-decay apple drops and removed the sticks that come with them, while keeping apple drops from chests, deaths, and players.
+- Changed entities to be cleaned when a chunk loads as well as when they spawn.
+- Added suppression for the hunger and XP bars, which Beta did not show.
+
+### Other Addons
+
+- Fixed far.land item and shop displays being deleted by the drop conversion and entity cleaner; entities tagged `far:item_display` or `far:shop_display` are now left untouched.
+
+### Tooling
+
+- Added a Regolith `agents-md-strip` filter that removes the nested `AGENTS.md` files from the exported pack, which 5.3.2 shipped by mistake.
+- Changed the world push to align each pack pair's declared version with the version installed on the server.
+- Changed the script-permissions push to write the pack config directories as well.
+- Changed `pushWorld.mjs` to fall back to `gargamel_merged_unsmoothed.mcworld` when the smoothed world file is missing.
+- Added the AGPL-3.0 license.
+
 ## 5.3.2 — 2026-10-07
 
-5.3.2 is a fix-up release: items, food and bows unstack properly without duplication, the chest recipe
-crafts the Beta chest across all plank varieties and overrides vanilla's recipe, and world boundary
-lookups are guarded cleanly.
+5.3.2 is a smaller fix-up release focused on item stacking, chest crafting, and a few world-boundary issues.
 
-### Item normalization and unstacking
+### Item normalization
 
-- **Custom food and bow unstacking.** Custom foods (`bh:` porkchop, bread, apple, cod, golden apple)
-  and bows (`bh:bow`) are now evaluated during the inventory sweep. Stacked foods unstack to Beta limits
-  (cookies up to 8, other foods down to 1), and stacked bows unstack into individual items while stripping
-  modern enchantments.
-- **Duplication prevention during unstacking.** `handleItemUnstacking` now respects maximum stack sizes
-  when distributing overflow across empty slots and when dropping items into the world, dropping items
-  in bounded stacks rather than a single oversized bundle.
-- **Cake is unstackable.** Added `minecraft:cake` to `UNSTACKABLE_UTILITIES`.
+- Fixed custom foods and bows not being checked for Beta stack limits during the inventory sweep.
+- Changed custom porkchop, bread, apple, cod, and golden apple items to unstack to a maximum of 1.
+- Changed cookies to unstack to Beta's maximum stack size of 8.
+- Changed stacked `bh:bow` items to split into individual bows.
+- Changed normalized bows to remove modern enchantments.
+- Fixed item duplication when unstacking into partially available inventories.
+- Changed overflow handling to respect each item's maximum stack size when filling empty slots.
+- Changed excess items dropped into the world to use valid stack sizes instead of one oversized stack.
+- Added `minecraft:cake` to `UNSTACKABLE_UTILITIES`.
 
-### Chest crafting recipe
+### Chest crafting
 
-- **Overrides the vanilla recipe identifier.** The shaped recipe now uses `minecraft:chest` as its
-  identifier with `["crafting_table", "beta_crafting"]` tags, preventing players from crafting modern
-  vanilla chests on either table.
-- **Universal plank support.** Recipe inputs and unlock criteria use the `minecraft:planks` tag instead of
-  requiring oak planks exclusively, allowing all plank types to craft `bh:chest`.
+- Changed the chest recipe to override the vanilla `minecraft:chest` recipe directly.
+- Changed the recipe to produce `bh:chest`.
+- Added both `crafting_table` and `beta_crafting` tags so the modern chest recipe cannot still appear on either crafting table.
+- Changed the recipe to accept the `minecraft:planks` tag instead of oak planks only.
+- Changed the unlock requirement to use the plank tag as well, allowing every plank variety to craft the Beta chest.
 
-### World and boundary guards
+### World fixes
 
-- **Out-of-bounds submersion guard.** `isHeadSubmerged` in `underwaterOverlay.ts` checks the dimension
-  height range (`head.y < min || head.y >= max`) before calling `getBlock`, eliminating recurring
-  `LocationOutOfWorldBoundariesError` exceptions when players are above the world or below the void, and
-  lifting the screen tint cleanly when entering the void.
-- **Bedrock floor preservation.** `chunkScrubber.ts` no longer clears bedrock above the floor ceiling,
-  leaving intentional bedrock above Y=2 untouched during chunk scans.
+- Fixed recurring `LocationOutOfWorldBoundariesError` errors from the underwater overlay when a player's head was outside the dimension height range.
+- Changed `isHeadSubmerged` to check the world's minimum and maximum Y before calling `getBlock`.
+- Changed the underwater tint to clear normally when entering the void or moving above the world boundary.
+- Changed the chunk scrubber to stop removing bedrock above the generated floor ceiling.
+- Preserved intentional bedrock above Y=2 during terrain scans.
 
 ## 5.3.1 — 2026-10-07
 
-5.3.1 is a script-only fix-up: no blocks, items or recipes changed, and the world generates exactly
-as 5.3 left it. The headline is the return of farmland trampling on the era's terms, which Bedrock
-had banished to landings only; the rest is the same behaviour carried by less code.
+5.3.1 is a script-only update. Blocks, items, recipes, and world generation are unchanged from 5.3.
+
+The main fix is farmland trampling, along with some cleanup to reduce duplicated script.
 
 ### Farmland trampling
 
-Bedrock tramples farmland only when something *lands* on it, so Beta's walking rule — the thing that
-made farms need fences — was missing entirely, and jumping on a farm destroyed it, which the era never
-did. `interactions/cropTrampling.ts` re-adds both halves:
+- Added Beta-style farmland trampling while walking.
+- Changed trampling to use Beta's step timing and one-in-four chance.
+- Added the sneak exemption.
+- Added the rider exemption so the mount can trample farmland without also counting the rider.
+- Restored the old fence behavior because the walking check respects blocked movement.
+- Removed modern landing-based trampling by restoring farmland after Bedrock converts it.
+- Added farmland snapshots so moisture and crop growth are restored after a landing trample.
+- Removed crop drops created by the modern landing behavior so restored crops cannot be duplicated.
+- Added Beta-style crop drops when walking tramples farmland.
+- Changed ripe crops to drop one wheat plus up to three seed rolls.
+- Changed unripe crops so they can drop nothing.
+- Changed walked-on crops to be broken by the script instead of relying on the modern crop loot table.
+- Changed manually placed dirt on watched farmland tiles to remain untouched.
+- Added mob trampling because Beta allowed walking entities to trigger farmland.
+- Added animal-trampling balance checks to `BETA_POLICY_GAPS.md` for server testing.
 
-- **Walking tramples again**, on Beta's own terms: the era's step cadence, its one-in-four roll, the
-  sneak exemption, and the rider exemption — the mount tramples, the player on its back does not. The
-  fence trick is total again because the walking rule honours it, exactly as 1.7.3 did.
-- **A walked-off crop comes down with its soil and pays the era's drop.** 1.7.3's `BlockCrops` paid
-  one wheat only when ripe and up to three rolls of seeds; unripe crops could drop nothing. Waiting
-  for the engine's own block update would pop the crop with the modern loot table, so the walking
-  rule breaks the crop itself and spawns the era's drops.
-- **Bedrock's landing trample is undone, not prevented.** The engine converts the block inside its own
-  tick with no script hook in front of it, so the module watches the columns a falling entity is
-  heading into and puts the farmland — moisture and crop growth included — back from a snapshot, and
-  clears the crop drops the break spawned so the restore cannot be farmed for free. The guard serves
-  every game mode, because it is undoing an engine behaviour the era never had.
-- **Placed dirt is the player's.** Dirt a player puts down on a watched tile is left alone; only the
-  engine's own trample is restored.
+### Script cleanup
 
-Beta's mobs trample too, since `canTriggerWalking()` was true for every entity; if animal trampling
-proves too punishing on a server, that sweep is the first constant to revisit — see
-`BETA_POLICY_GAPS.md` §8, which also lists the in-game checks still owed.
+- Merged the separate pickaxe and sword tool-bonus modules into `toolMining.ts`.
+- Changed `toolMining.ts` to handle both redstone mining fatigue and sword leaf/wool speed in one shared pass.
+- Removed one module load from `main.ts`.
+- Reworked the inventory sweep so inventory and equipment slots use the same shared loop.
+- Changed the apple-drop check to read its 27-block neighbourhood once instead of three times.
+- Reduced the shipped script by 32 lines and one module.
+- Kept the full test suite passing at 393 tests.
 
-### Same behaviour, less script
+### Tooling
 
-The two tool-bonus modules were the same tick loop written twice. They are now one `toolMining.ts`
-module that runs both halves — the pickaxe's redstone-mining fatigue and the sword's leaf-and-wool
-speed — through a shared pass, and `main.ts` loads a single module for them. The inventory sweep's
-four near-identical slot loops collapsed into one implementation for both the 36-slot inventory and
-the equipment slots, and the apple-drop check reads its 27-cell neighbourhood once per spawn instead
-of three times. Net change to shipped script: 32 fewer lines and one fewer module, with the suite
-still passing at 393 tests.
-
-### Tooling (not in the pack)
-
-`eslint-rules/` adds three Betafied-owned ESLint rules, the notable one being `no-beta-api`, which
-warns when script calls a member the pinned `@minecraft/server` typings tag `@beta`, so a
-dependence on pre-release surface is declared at lint time rather than discovered in game.
+- Added three Betafied-specific ESLint rules under `eslint-rules/`.
+- Added `no-beta-api` to warn when script uses members marked `@beta` in the pinned `@minecraft/server` typings.
+- Changed Beta API usage to be caught during linting instead of only being discovered in-game.
 
 ## 5.3 — 2026-10-06
 
-5.3 is a fix-up release: the ores that were retuned after 5.2 landed on the pack's own generation
-rules, a handful of quietly wrong behaviours are corrected, and the world border is gone. The
-headline for survival play is that charcoal exists again — it had been unreachable since the log
-rework.
-
-### Charcoal and fuel
-
-The log rework retyped every log a player holds into a custom `bh:` item, and vanilla's furnace
-recipes — which take the vanilla log item as input — stopped matching anything. Charcoal was
-therefore unobtainable, and nobody noticed, which is exactly the kind of failure this release is
-for.
-
-- Each Beta log now smelts into charcoal through its own furnace recipe, matching the input the
-  player actually holds. Charcoal carries vanilla's `minecraft:coals` tag natively, so torches,
-  campfires and the furnace itself accept it without further content.
-- Logs are furnace fuel again. The custom log items carry the fuel component at Beta's 15-second
-  burn, which tags alone never granted.
-- The furnace minecart burns charcoal the way Beta's burned coal: the interaction filter and its
-  script guard accept either item at the same 1600 ticks of fuel.
+Ore generation now uses Beta-style counts and height ranges, charcoal is obtainable again, and custom logs work as furnace fuel. Mob lighting and a few smaller systems also got fixes.
 
 ### Ore generation
 
-- Vanilla's primary ore feature rules for coal, iron, gold, redstone, diamond and lapis keep their
-  identifiers but now scatter the pack's own features, carrying Beta's per-chunk attempt counts,
-  height bands and vein sizes into the stone family only. The fourteen modern split variants —
-  upper, lower, buried, large, square and the mesa and mountains specials — are neutered behind a
-  biome tag no biome carries, so nothing double-fires on top of Beta's counts. Whether an override
-  by identifier actually pre-empts vanilla's rule still needs the in-game look recorded in
-  `BETA_POLICY_GAPS.md`, and so do the pre-1.8 redstone, diamond and lapis vein figures.
-- A ground drop of raw copper lands on cobblestone through the same rule the inventory sweep uses,
-  instead of being special-cased into iron ore. Beta had no copper at all, and one owner now
-  answers for both paths.
+- Changed coal generation to 20 attempts of up to 16 blocks between Y=0–128.
+- Changed iron generation to 20 attempts of up to 8 blocks between Y=0–64.
+- Changed gold generation to 2 attempts of up to 8 blocks between Y=0–32.
+- Changed redstone generation to 8 attempts of up to 7 blocks between Y=0–16.
+- Changed diamond generation to 1 attempt of up to 7 blocks between Y=0–16.
+- Changed lapis generation to 1 attempt of up to 6 blocks centered around Y=16.
+- Added `bh:beta_*_ore_feature` definitions for all six Beta ores.
+- Changed the main vanilla ore feature rules to use the Beta ore features instead of modern Caves & Cliffs distributions.
+- Disabled the 14 extra modern ore variants (upper, lower, buried, large, small, mesa, mountain and other split rules) so they don't generate ore on top of the Beta counts.
+- Changed ore features to replace only stone-family blocks, so veins don't cut through surface terrain.
+- Added the vanilla feature-rule override behavior to `BETA_POLICY_GAPS`, since it's still unconfirmed.
+- Added the redstone, diamond and lapis vein sizes to `BETA_POLICY_GAPS` until their exact Beta values are confirmed.
 
-### Mob rendering
+### Charcoal
 
-- The pack owns the vanilla mob render controllers rather than inheriting modern lighting from
-  them: each controller re-declares its geometry, materials and textures, because an override
-  replaces the definition wholesale and a dropped short name would silently vanish a layer. The
-  bat is wired to its controller explicitly, which its client entity never declared.
+- Added furnace recipes for oak, birch and spruce logs that produce `minecraft:charcoal`.
+- Restored charcoal crafting paths such as torches by using vanilla charcoal and its existing `minecraft:coals` tag.
+- Added furnace fuel components to all three custom log items.
+- Changed custom logs to burn for 15 seconds.
+- Changed furnace minecarts to accept charcoal as well as coal.
+- Changed furnace minecart charcoal fuel time to 1600 ticks, the same as coal.
+- Added custom-item furnace input behavior to the in-game confirmation list.
 
-### World and tooling
+### Mob lighting
 
-- The world border is removed. Radius 4000 was never Beta behaviour, so the module is deleted from
-  the tree rather than left dormant, along with its enforcement of a circular playable area.
-- Releases are published from the tracked changelog: `npm run release` reads the `## <version>`
-  section for the version `package.json` declares and attaches the built pack assets, so a
-  published release can no longer describe a build the tree does not contain.
-- `scripts/regolith.sh` lets a one-off environment variable override `.env` instead of letting the
-  file win, so `BETAFIED_SFTP_PASSWORD=... npm run push` behaves the way it reads.
+- Added pack-owned render controller overrides for vanilla mobs, so their lighting no longer depends on the modern default controllers.
+- Re-declared each controller's geometry, materials and textures, because render-controller overrides replace the full definition.
+- Added explicit render-controller wiring for bats.
+- Added a smoke test that checks render-controller short names against the client entities that use them.
+
+### Other fixes
+
+- Changed raw copper ground drops to resolve through the normal compatibility rules instead of being disguised as iron ore.
+- Changed raw copper to become cobblestone, consistent with the inventory sweep.
+- Removed the finite world-border module, since Beta 1.7.3 did not have one.
+- Added `npm run release` tooling that publishes directly from the current changelog and built packs, so both come from the same tree.
+- Changed `regolith.sh` to load `.env` with the same precedence as the push tooling.
+- Changed environment loading so explicitly inherited values override `.env` values in both paths.
 
 ## 5.2 — 2026-10-02
 
-5.2 is the release where the pack stopped describing Beta and started showing it. The Overworld now
-carries Beta's own sky, clouds, sun, block-break crack and pumpkin overlay, and every biome tints its
-grass and foliage the way Beta's climate map did — the brown water and washed-out greens of a modern
-Bedrock frame replaced by the warmer palette the era actually drew. Underneath the art is a quieter
-change that touches most of the tree: the three tables that each claimed to know what Beta was — the
-registry, the normalizer and the compatibility policy — have been collapsed onto one owner each, so
-the rule a test asserts is now the rule the game runs.
+5.2 is mostly a visual and cleanup update.
+
+The Overworld now uses more of Beta's original environment art and biome colouring, and a lot of duplicated internal rules have been consolidated so different systems stop maintaining their own slightly different idea of what is and isn't valid Beta content.
 
 ### Sky and biome colour
 
-Beta's environment is temperature-driven. `World.getSkyColor` samples the climate at the player and
-hands it to `BiomeGenBase.getSkyColorByTemp`, and grass and foliage are drawn through the colormaps
-modulated by the biome's own tint. New terrain now renders the same way.
+- Added Beta's original grass colormap at `textures/colormap/grass.png`.
+- Added generated grass, foliage, and sky colours for every Overworld biome.
+- Changed Forest, Plains, Desert, Taiga, and Swampland to use their own climate-based colouring instead of sharing the same general Bedrock tint.
+- Added `scripts/derive-biome-colors.mjs` to generate the 84 client biome definitions.
+- Added `npm run generate:client-biomes` and a smoke test to keep generated biome colours in sync.
+- Changed sky colour generation to use Beta's original temperature-based formula.
+- Added Beta's original cloud texture.
+- Added Beta's original sun texture.
+- Added Beta-style block-breaking crack textures from the original ten `destroy_stage_*` tiles.
+- Added Beta's pumpkin overlay.
+- Changed the moon texture to use the same Beta moon across all eight Bedrock moon-phase slots because Beta did not have moon phases.
+- Added smoke tests for the environment texture paths and texture layouts.
 
-- Beta's grass colormap ships as `textures/colormap/grass.png`, the era's own `grasscolor.png` rather
-  than the modern one Bedrock loads. It is close to what Bedrock already had, so the swap is quiet on
-  its own; where it matters is the biome tint multiplied over it.
-- Every Overworld biome is emitted as a client biome with a derived `grass_appearance`,
-  `foliage_appearance` and `sky_color`, so forest, plains, desert, taiga and swampland each read as
-  themselves instead of collapsing onto one global green. The derivation lives in
-  `scripts/derive-biome-colors.mjs`, which samples Beta's own climate and colormap math, and the 84
-  `packs/RP/biomes/*.client_biome.json` files are generated from it — `npm run generate:client-biomes`
-  and a smoke test keep the two from drifting apart.
-- The sky colour is Beta's formula and not a constant. `betaColorizer.betaSkyColor` reproduces
-  `Color.HSBtoRGB(0.62222224 - t * 0.05, 0.5 + t * 0.1, 1.0)` with the same per-step rounding Java
-  used, so a warm biome is tinted and a cold one is not.
-- Beta's environment art replaces the modern set: `environment/clouds.png` (the era's crisp layered
-  cloud slab), `environment/sun.png`, the block-break crack drawn from ten `destroy_stage_*` tiles
-  extracted from Beta's terrain atlas, and `misc/pumpkinblur.png`. Bedrock only understands a 4x2
-  moon sheet, so the single Beta moon is repeated across all eight frames rather than shipping the
-  phases the era never had. `tests/smoke/skyTextures.test.ts` pins each path and shape.
+### Internal cleanup
 
-### One owner per fact
-
-The failure this release is built to prevent is a rule written in one file, its behaviour living in
-another, and a test in a third asserting the rule instead of the code path — green in CI while the
-game did something else. The three parallel Beta tables are now one owner each.
-
-- `compatibilityPolicy` is reduced to exactly its name: world-block replacement. Its duplicate entity
-  allowlist, banned-drop set, ore table and item-conversion table are deleted, because each restated
-  a table in `betaRegistry` or `normalizer` and had drifted from it — the entity list was missing
-  `oak_boat` and the banned set held only `rotten_flesh`, so it agreed with the spawn handler on
-  nothing but the common case.
-- `betaRegistry` now owns the shared vocabulary the subsystems used to re-list: the passive, hostile
-  and pigman entity sets; the sword and pickaxe tiers; the wood-species groups; and Beta's wool
-  palette, which feeds the block allowlist, the sheep drop and the sword bonus from one place.
-- Beta constants are one module. `betaConstants.ts` owns the dimension identifiers, the short
-  `getDimension` keys and the vertical bounds, and `runtimeSmoke` now fails the build if a
-  `getDimension` call is handed a `_ID` constant — the mistake that silently matched nothing.
-- `equipmentSlots.ts` and `vectorMath.ts` collect the armor slot list and the boat/minecart vector
-  helpers the two vehicle subsystems had each copied and let diverge.
-- `FOOD_CONVERSIONS` moved into `normalizer` and `FOOD_ITEMS` membership is derived from it, so a food
-  the sweep retypes can never be one the health module forgot to feed; it throws at load rather than
-  dropping a conversion on the floor. `resolveDropId` collapses the drop path onto one function, so a
-  ground item lands on the id the inventory stacks it into.
-- `BETA_POLICY_GAPS.md` records the places where a declared rule and the shipped behaviour still
-  disagree, with the evidence for each. None of them is new; they were invisible while a test
-  asserted the declaration rather than the behaviour.
+- Removed duplicated entity, item, ore, and drop rules from `compatibilityPolicy`.
+- Changed `compatibilityPolicy` to only handle world-block replacement.
+- Moved passive, hostile, and Zombie Pigman entity lists into `betaRegistry`.
+- Moved sword and pickaxe tier definitions into `betaRegistry`.
+- Moved wood-species groups into `betaRegistry`.
+- Moved the Beta wool palette into `betaRegistry` so blocks, sheep drops, shears, and combat logic all use the same list.
+- Added `betaConstants.ts` for dimension identifiers, `getDimension` keys, and vertical world limits.
+- Added a runtime check that fails if a full dimension ID is accidentally passed to `getDimension`.
+- Added `equipmentSlots.ts` for the shared armor-slot list.
+- Added `vectorMath.ts` for shared boat and minecart movement helpers.
+- Moved `FOOD_CONVERSIONS` into `normalizer`.
+- Changed `FOOD_ITEMS` to be derived from the conversion table instead of being maintained separately.
+- Added a load-time check for invalid food conversions.
+- Added `resolveDropId` so dropped items and inventory conversions resolve through the same path.
+- Added `BETA_POLICY_GAPS.md` to document known places where intended Beta behavior still differs from what the pack currently does.
 
 ### World generation
 
-- Emerald and copper ores are suppressed at generation. Beta had no emerald (1.3) and no copper
-  (1.17), but both still generate on modern terrain, so `emerald_ore_feature`, `copper_ore_feature`
-  and `dripstone_caves_copper_ore_feature` are shipped as inert stubs. The scrubber's guaranteed net
-  changed with them: an emerald vein in already-generated ground is now repainted to stone rather
-  than erased to air, which had been punching ore-shaped holes through the rock.
-- Vines and glow lichen are stubbed the same way, following the fallen-tree pattern, and the old
-  `vine_feature.json` stub — whose identifier did not match a real vanilla feature, so it suppressed
-  nothing — is gone.
-- The bedrock floor keeps its three-block cap but no longer flattens. The height distribution was
-  retuned so the top layer is common instead of rare, which reads as a ragged floor rather than the
-  wide plateaus the old math left.
+- Disabled emerald ore generation.
+- Disabled copper ore generation.
+- Disabled dripstone-cave copper generation.
+- Changed existing emerald ore cleanup to replace the ore with stone instead of air.
+- Disabled vine generation.
+- Disabled glow lichen generation.
+- Removed the old `vine_feature.json` stub because its identifier did not match an actual vanilla feature.
+- Retuned the Y=0 bedrock-floor height distribution so the upper bedrock layer appears more often and the floor looks less flat.
+- Kept the three-block maximum bedrock cap.
 
 ### Other fixes
 
-- Sheep drops match Beta again. The shearing table returned 2-4 wool where Beta's `1 + rand.nextInt(3)`
-  is 1-3, and the punch path already used the correct range, so both now resolve from one pair of
-  bounds a test pins. A killed sheep's wool also carries its colour now, via the
-  `set_data_from_color_index` function the death table was missing.
-- The zombie's feather drop is owned by its loot table alone; the script no longer spawns a second
-  stack on top of it.
-- The oak fence recipe overrides vanilla's own `minecraft:fence` identifier rather than adding a
-  second `bh:` recipe, so a crafted fence is already the custom block and carries the `crafting_table`
-  tag. Fence connectivity also reports an unloaded neighbour instead of swallowing the error and
-  leaving a stale connection mask.
-- Netherite and turtle helmets no longer score armor points. They are not authentic Beta gear, and
-  the registry strips them; the armor table's suffix heuristic now stops at the vanilla namespace so
-  the two systems agree.
-- The sword's fast-break set drops the legacy ids (`web`, `leaves`, `wooden_stairs`, `wool`) that
-  never resolve on this engine and takes its wool palette from the registry, which is the owner the
-  shears and the animal AI already read.
-- Slab, stair and log placement normalization is removed from the interaction guards. Every plank,
-  log, stair, slab and fence a player can hold is retyped to its `bh:` equivalent on pickup, so the
-  custom blocks carried no such post-placement repair to apply; the guard is now the single place
-  that has to grow if a vanilla block ever becomes reachable again.
-- Deploying a fresh server no longer leaves content logging off. `push.mjs` upserts the logging keys
-  in `server.properties` instead of repairing only the literal `=false` form, which did nothing when
-  the key was absent altogether — exactly what a new `server.properties` ships.
+- Fixed sheep shearing drops from 2–4 wool to Beta's correct 1–3 wool.
+- Changed sheep punch and shearing drops to use the same shared wool-count bounds.
+- Fixed killed sheep dropping wool without preserving their colour.
+- Added `set_data_from_color_index` to the sheep death loot table.
+- Removed the scripted zombie feather drop because the zombie loot table already handled it.
+- Changed the oak fence recipe to override vanilla's `minecraft:fence` recipe instead of adding a separate duplicate recipe.
+- Changed crafted fences to directly produce the custom Betafied fence block.
+- Added the `crafting_table` tag to the fence recipe.
+- Fixed fence connections becoming stale when a neighbouring chunk was unloaded.
+- Removed armor-point handling for Netherite and turtle helmets.
+- Changed the armor fallback heuristic so it only applies to vanilla armor identifiers.
+- Removed obsolete sword fast-break IDs including `web`, `leaves`, `wooden_stairs`, and `wool`.
+- Changed sword wool checks to use the shared wool palette from `betaRegistry`.
+- Removed slab, stair, log, plank, and fence placement-normalization code from the interaction guards because those items are already converted before placement.
+- Changed `push.mjs` to add or update the content-logging settings in `server.properties` instead of only changing them when the keys already exist.
+- Fixed fresh server deployments starting with content logging disabled.
 
-## 5.1 — 2026-10-01
+## 5.1 — 2026-10-02
 
-5.1 is the cleanup that follows 5.0. It closes the gaps the terrain rewrite left open: the foliage
-and flowers that were slipping past the scrubber, the sideways logs modern generation scatters as
-"fallen trees," and the two chokepoints that made a fresh world worse than an old one — a spawn that
-searched down into the new floor and found nothing, and logs that would not stack once picked up.
+5.1 is mostly cleanup after 5.0.
+
+It fixes some terrain leftovers that were still getting through, removes modern fallen trees, fixes fresh-world spawning, and fixes logs refusing to stack properly after being picked up.
 
 ### World spawn
 
-Beta dropped the player onto whatever terrain the seed produced, and so does this release now that
-the custom spawn coordinator is gone. That module teleported a new player to a random point up to
-1000 blocks out, lifted them to Y=130 and searched downward for solid, hazard-free ground. Once 5.0
-laid the Overworld's bedrock floor at Y=0, that search ran off the bottom of its range over fresh
-terrain, the open ocean and any chunk the engine had not loaded yet, so it returned nothing; after
-fifteen failed attempts it fell back to a fixed `{0, 80, 0}`, which was often a fall or a drop into
-water. Spawn is the engine's own again, and the module is deleted rather than left dormant.
+- Removed the custom spawn coordinator and returned spawning to Minecraft's normal seed-based spawn system.
+- Removed the old random spawn search because the new Y=0 bedrock floor could make it fail to find valid ground.
+- Removed the fallback spawn at `{0, 80, 0}`, which could drop players into water or leave them falling.
+- Deleted the old spawn module entirely instead of leaving it disabled.
 
 ### Fallen trees
 
-Modern overworld generation scatters fallen trees — a log laid flat on the ground — through several
-forests. Beta 1.7.3 logs only ever stood upright, so they have no Beta counterpart and are now
-gone.
-
-- The engine features that place them are shipped as inert no-ops, so new terrain no longer grows
-  them. That is the fix for a fresh world. The five `fallen_*_tree_feature` ids and their five
-  `optional_fallen_*` variants are all suppressed; the previous stub named `fallen_acacia_tree_feature`
-  was a no-op against a feature that does not exist, which is why acacia was never the problem and
-  the forests kept their logs.
-- Terrain that already generated is cleaned by the scrubber. A permutation-filtered native fill
-  matches a log on its side and clears it to air, while a vertical log — which the axis alone cannot
-  tell apart from terrain — is left standing. Presence is probed per band first, so a chunk with only
-  upright logs pays one scan and no write.
+- Removed modern fallen-tree generation because Beta 1.7.3 only generated upright logs.
+- Disabled the five `fallen_*_tree_feature` features and their five `optional_fallen_*` variants.
+- Removed the old `fallen_acacia_tree_feature` stub because that feature does not actually exist.
+- Added scrubber cleanup for fallen logs in already-generated terrain.
+- Changed cleanup to only remove sideways logs, leaving upright logs untouched.
+- Added a presence check before writing so chunks with only normal upright logs do not pay for an unnecessary fill.
 
 ### Plants and flowers
 
-Post-Beta plants were surviving a full scrub pass, and this release is why they no longer do.
-
-- The scrubber kept two replacement tables: a bulk table reached by group-testing its types, and a
-  fine table reached only through the fine pass's reverse-allowlist volume query. That query does not
-  reliably hand these blocks back, so anything listed only in the fine table — the modern flowers,
-  leaf litter, vines and the tall plants above — could sit through a complete sweep untouched. Both
-  tables are now merged into the single probe list that drives the filtered native fill, which is the
-  path that actually reaches them. On a type named in both tables the first entry wins, so nothing is
-  filled twice.
-- The full modern flower palette is enumerated — lilac, peony, rose bush, sunflower, cornflower,
-  lily of the valley, azure bluet, oxeye daisy, allium, blue orchid, pitcher plant, torchflower and
-  hanging roots — and the tall ones are masked in the resource pack so an unscrubbed chunk shows
-  nothing rather than a see-through hole.
+- Fixed some modern plants and flowers surviving a complete scrub pass.
+- Merged the old bulk and fine replacement tables into the same native-fill probe path so both sets of blocks are actually reached.
+- Changed duplicate replacement entries so the first matching rule wins instead of processing the same block twice.
+- Added cleanup for lilac, peony, rose bush, sunflower, cornflower, lily of the valley, azure bluet, oxeye daisy, allium, blue orchid, pitcher plant, torchflower, hanging roots, leaf litter, vines, and other post-Beta plants.
+- Masked tall modern plants in the resource pack so an unscrubbed chunk does not show see-through holes before cleanup runs.
 
 ### Item drops
 
-The log-drop stacking bug is fixed, and it was a coordination problem rather than a duplicate one.
+- Fixed chopped logs refusing to stack after pickup.
+- Changed log drops to spawn directly as their final `bh:` item instead of dropping as a vanilla log and being converted after pickup.
+- Changed drop conversion to use the same placer table as the inventory sweeper so ground items and inventory items always use the same identifier.
+- Restored normal native item stacking for converted log drops.
 
-- A chopped log's drop was left as `minecraft:oak_log` on the ground, while the inventory sweeper
-  retyped the item to `bh:oak_log` only once it was picked up. The second log therefore found no
-  stack to merge into — the first one was already the custom id — and a player collected a hotbar of
-  singles. Drop rewrites now resolve through the same placer table the sweeper uses and spawn the
-  item as its final `bh:` identifier, so the ground item and the inventory item are identical and the
-  engine merges them natively.
+## 5.0 — 2026-10-02
 
-## 5.0 — 2026-10-01
+Sorry for the wait on this one. Partway through development the drive this project was on failed. Most of it was recovered, but some files were lost or corrupted and had to be rebuilt.
 
-First, an apology for the wait. This release took much longer to reach you than we intended. Partway
-through development the drive this project lives on failed, and progress was lost with it. Most of the
-tree was recovered, but not all of it, and some files came back corrupted and had to be rebuilt from
-the copies and the salvage that survived. That is where the delay went. Everything described below is
-finished, tested, and in your hands now.
-
-5.0 is the largest terrain release we have shipped. The chunk scrubber was rewritten from the ground
-up, which means a chunk now costs a fraction of the work it used to, and the terrain a fresh world
-generates is closer to Beta 1.7.3 than anything we have released before. It is also a broad bug-fix
-release: chests place and pair correctly, the underwater tint finally covers the screen, and the
-Nether, the biomes, the flowers and the world floor all land where they should. This is a milestone
-we are proud of, and it came out of the worst development setback this project has had.
+5.0 is the largest terrain release so far, with a rewritten chunk scrubber, more accurate Beta 1.7.3 terrain, and a large number of fixes.
 
 ### Terrain performance
 
-The chunk scrubber is where this release earns its name. It now asks the engine for what is actually
-there instead of walking every block in script.
-
-- A scrub pass asks the engine for the blocks in a chunk band that are *not* authentic Beta blocks,
-  filtered by an inverse allowlist, so the script only ever sees the handful of blocks that need
-  work instead of reading all 32,768 of them. Most chunks have almost nothing to report.
-- The ~70 replacement types are located by group-testing the table: a probe answers "is any of these
-  types in this band", so an empty range prunes its entire subtree in one native scan. Probing the
-  entries one at a time was the single largest cost in the script tick, and nearly every one of those
-  scans returned nothing.
-- Conversions go through the native block API (`Dimension.fillBlocks`) rather than the `fill`
-  command — no command parsing, no 32,768-block cap, and only for a type that is genuinely present.
-  A chunk that used to cost tens of thousands of script calls now costs a couple of dozen engine
-  calls.
-- Bands are sized so one volume query stays at 32,768 blocks, which bounds a single native scan and
-  gives the job a useful place to yield.
-- A cleaned chunk is re-verified on a long timer rather than re-scanned continuously. The old
-  cadence re-walked the same nine chunks around a standing player ten times a minute, forever, which
-  is what the profiler showed dominating the server tick. The rescan still exists for terrain that
-  arrives *after* the first visit — a late structure, another addon writing into a chunk — but it is
-  no longer a background cost.
-- A chunk whose band could not be read (unloaded mid-sweep) or whose fill the engine refused is left
-  unmarked and retried, so a failed pass can never be mistaken for a clean one.
-- The inventory sweep stopped reading all 36 slots of every player on every tick. The engine already
-  announces inventory changes, so the sweep rides that signal with a slower equipment sweep and a
-  full sweep behind it as safety nets. Between this and the scrubber, the tick budget came back.
+- Rewrote the chunk scrubber to use `Dimension.fillBlocks` instead of `/fill`, greatly reducing the number of script calls needed per chunk.
+- Changed terrain scanning to work in bounded bands so large scans can yield cleanly between ticks.
+- Changed cleaned chunks to use a long recheck timer instead of being rescanned constantly.
+- Changed failed or unloaded chunk passes so they remain unmarked and retry later instead of being treated as clean.
+- Changed inventory cleanup to react to inventory changes instead of reading all 36 slots every tick.
+- Added slower equipment and full inventory sweeps as fallback checks.
 
 ### Terrain accuracy
 
-The Overworld now surfaces only the biomes Beta 1.7.3 actually generated. Every Bedrock Overworld
-biome is overridden with a Beta definition, so no modern biome palette survives into new terrain.
-
-- Beta defined ten Overworld biomes, but only five ever generated: Forest, Plains, Desert, Taiga and
-  Swampland. The Adventure Update's changelog records that Rain Forest, Seasonal Forest, Shrubland,
-  Savanna, Tundra and Ice Desert "did not generate in previous versions", and Sky was unreachable.
-  Snow therefore only ever appeared as Taiga, and the modern climate map hands out far more cold
-  zones than Beta had biomes; only the taiga ids keep their snow, while the frozen peaks and ice
-  plains that land in the same zones render as the temperate forest or plains their terrain
-  resembles. The engine, not the pack, decides where those zones sit, so this changes how they look
-  rather than how often they occur.
-- Oceans, beaches and rivers were terrain features in Beta rather than biomes, so they get
-  era-correct surfaces: seabeds are dirt and gravel instead of sand and clay, beaches are sand or
-  gravel, and cave walls are plain stone.
-- Post-Beta biomes fold onto the biome whose climate they resemble. Jungles and mushroom islands
-  become Forest, savannas become Plains, terracotta badlands collapse to sand and sandstone, and
-  the frozen highlands — ice mountains, frozen and jagged peaks, snowy slopes and groves — become
-  Forest or Plains, so a cold zone is no longer another snowy spruce forest. The sea never froze in
-  Beta, so frozen oceans and rivers render as ordinary water instead of an endless ice sheet.
-- Biome tags are reset to the Beta set, so vanilla feature rules keyed to `bamboo`, `cherry_grove`,
-  `bee_habitat`, `mesa`, `lush_caves` and friends no longer fire.
-- Every biome is emitted at format version 1.26.0 and omits `minecraft:village_type`, which is what
-  actually stops villages generating — below that version the engine falls back to legacy biome-id
-  placement and the missing component does nothing.
-- The table lives in `scripts/lib/betaBiomes.mjs`; `node scripts/generate-biomes.mjs` emits the JSON
-  and a smoke test fails if the two ever drift apart.
+- Removed modern Overworld biome behavior by overriding every vanilla biome with a Beta-style definition.
+- Limited visible Beta biomes to Forest, Plains, Desert, Taiga, and Swampland.
+- Changed most modern cold biomes to Forest or Plains so every cold zone does not become snowy Taiga.
+- Changed ocean floors back to dirt and gravel instead of modern sand and clay. (verification needed if this is accurate.)
+- Changed beaches to use sand or gravel.
+- Changed cave walls back to plain stone.
+- Changed jungles and mushroom islands to Forest.
+- Changed savannas to Plains.
+- Changed badlands to sand and sandstone.
+- Changed frozen oceans and rivers back to normal water.
+- Removed modern biome tags such as `bamboo`, `cherry_grove`, `bee_habitat`, `mesa`, and `lush_caves`.
+- Removed village generation by emitting biomes without `minecraft:village_type`.
+- Moved the biome mapping table into `scripts/lib/betaBiomes.mjs` and added generated JSON plus a smoke test so the definitions stay in sync.
 
 ### Flowers
 
-Beta 1.7.3 grew exactly two flowers, the red poppy and the yellow dandelion. New terrain now does too.
-
-- The Overworld flower scatters — overworld, plains, swamp and the flower-forest and meadow variants
-  for when those tags return — are overridden to place the Beta flower feature instead of the
-  modern `legacy:` pickers, so the scatters' density and spread are unchanged while their palette is.
-- `minecraft:flower_feature` is a 50/50 pick between poppy and dandelion, and the red and yellow
-  flower features that feed it place those blocks directly. All three only attach to grass, which is
-  what keeps the scatter from salting flowers into deserts and beaches.
-- The engine bakes the modern double-height flowers — lilac, peony, rose bush and sunflower — into
-  its own `minecraft:double_plant_feature` aggregate, behind a feature pass the flower scatters
-  never reach, so overriding the scatters alone still left lilacs growing. That aggregate is now
-  shipped as an inert no-op, which is what actually stops them generating rather than relying on
-  the scrubber to catch them afterwards.
-- Every remaining post-Beta flower is still swept by the chunk scrubber, but with generation now
-  producing only poppies and dandelions the scrub pass has nothing to undo.
+- Removed all modern flower generation except poppies and dandelions.
+- Changed `minecraft:flower_feature` to a 50/50 poppy and dandelion picker.
+- Changed red and yellow flower features to place those blocks directly.
+- Restricted flowers to grass so they do not generate in deserts or beaches.
+- Disabled the vanilla double-plant aggregate to stop lilacs, peonies, rose bushes, and sunflowers from generating.
+- Kept the scrubber fallback for any post-Beta flowers that still appear.
 
 ### Structures
 
-Beta 1.7.3 built exactly one structure, the dungeon. Villages are gone; the rest of the modern
-structure roster cannot be removed at generation, which is a Bedrock engine limit, not an oversight.
-
-- Emptied vanilla structure sets were tried and abandoned. The engine registers its structure sets
-  before packs load and rejects any pack that redefines one (`Structure set 'minecraft:trial_chambers'
-  has already been registered`), so an overridden set is silently ignored and removes nothing.
-- Strongholds, mineshafts, temples, witch huts, ocean monuments, ruined portals, igloos, Nether
-  fortresses and the like are placed by engine code that a behavior pack cannot reach. Only the
-  tag-driven jigsaw structures (trail_ruins, abandoned_camp) are suppressed, because the Beta biomes
-  omit the `has_structure_*` tags those filter on.
-- Because generation cannot be blocked for those, the chunk scrubber is what erases them after the
-  fact. It clears their post-Beta shell — Nether brick, Nether wart, crying obsidian, magma, stone
-  bricks — but a ruined portal's obsidian frame, lava and gold blocks are all Beta-legal, so they
-  are intentionally left standing rather than treated as structure debris.
-- Dungeons stay: `minecraft:monster_room` is a feature rather than a structure, which is why Beta's
-  one real structure survives the sweep.
+- Removed village generation.
+- Removed tag-driven modern structures such as trail ruins and abandoned camps by removing the biome tags they depend on.
+- Changed the scrubber to erase post-Beta structure blocks where structures cannot be disabled at generation time.
+- Left Beta-legal blocks such as obsidian, lava, and gold blocks untouched when cleaning structures.
+- Removed the unused structure-set overrides because vanilla structure sets cannot actually be replaced by behavior packs.
 
 ### Nether
 
-The Nether is now claimed the same way the Overworld is: one override per vanilla biome identifier,
-rather than a single custom biome that asked the engine to replace the others.
-
-- `minecraft:replace_biomes` is still experimental and rejects `minecraft:nether` outright, so the
-  Nether failed to load at all. It is gone. Every Nether biome — `hell` (the original identifier),
-  `soulsand_valley`, `crimson_forest`, `warped_forest` and `basalt_deltas` — is overridden directly
-  with a netherrack-and-lava surface, scattered soul sand and gravel, and lava-shore gravel beaches,
-  so the whole dimension reads as Beta's single Hell biome with no experiment required.
-- Only the classic Ghast and Zombie Pigman spawn tags survive; the enderman, piglin and magma cube
-  tags are dropped. The Nether contract test now asserts the five overrides instead of the old
-  replacement rule.
-- Magma is drawn by the engine rather than the biome, so it survived the override as the rim of every
-  lava sea. It is now converted to gravel rather than erased, which is what stops the coastline from
-  being punched full of holes.
-- Beta's Nether held no ores, but vanilla still hangs quartz, gold and ancient debris off the
-  `nether` biome tag this single Hell biome carries, so they dissolve back into netherrack.
-- `npm run wipe-nether` purges already-generated Nether chunks from a live world's LevelDB, keyed by
-  the dimension baked into each chunk key. It downloads, filters and uploads a stopped server's
-  database with a backup copy, and refuses to run without `--yes` or `--dry-run`.
+- Removed the old `minecraft:replace_biomes` system because it does not properly replace the Nether.
+- Added direct overrides for `hell`, `soulsand_valley`, `crimson_forest`, `warped_forest`, and `basalt_deltas`.
+- Changed all Nether biomes to the same Beta-style netherrack, lava, soul sand, and gravel setup.
+- Removed piglin, Enderman, and magma cube spawn tags.
+- Changed Nether quartz, gold, and ancient debris back into netherrack.
+- Changed magma around lava seas into gravel instead of air so shorelines are not left full of holes.
 
 ### Deep world
-
-Beta's Overworld was 128 blocks tall, with a jagged bedrock floor at Y=0 and nothing beneath it.
-The world now ends at Y=0 the same way.
-
-- An addon cannot shorten the Overworld, so a rough bedrock floor is laid at Y=0 instead. Only the
-  floor is written — the sub-zero column is left as native terrain, since survival players cannot
-  break through bedrock and never see it. It is folded into the scrub pass that already runs there
-  and goes through the native block API rather than the `fill` command — no new tick job and no
-  per-column script work, which would be 16k calls and a watchdog kill.
-- The floor is uneven at block resolution: a deterministic heightmap merged into horizontal runs, so
-  mining stops at a different height column to column the way Beta's floor did.
-- The deepslate layer, deep dark, negative-Y caverns and aquifers all stay below the floor, hidden
-  behind the unbreakable bedrock cap. The fine scrub pass no longer walks the sub-zero column, and
-  breaking a block below Y=0 in the Overworld is vetoed as a guard against opening the void.
-- Bedrock left above the floor ceiling (Y=3) by a floor written under the old math is repaired back
-  to air. The pass is gated on a native presence probe, so a chunk with nothing above the ceiling
-  never pays for a write.
-- The floor is sealed a chunk out from the player in every direction, nearest chunk first. A pass
-  claims a chunk before sweeping it and releases the claim when the sweep finishes, so a sweep that
-  spans ticks no longer has the next pass re-seal the same chunk while the rest of the ring starves.
+- Added a rough bedrock floor around Y=0 to recreate Beta's 128-block world height.
+- Changed the floor to use a deterministic uneven heightmap instead of a perfectly flat layer.
+- Stopped the fine scrub pass from scanning the sub-zero world because it is hidden below the bedrock floor.
+- Added a block-break guard below Y=0 so survival players cannot open the modern underground.
+- Added repair logic for bedrock left too high by older floor-generation math.
+- Changed floor sealing to process nearby chunks first and claim chunks while they are being worked on.
 
 ### Chests
 
-Chest placement is fixed, and it is one of the headline bug fixes in this release.
-
-- `bh:chest` now carries a `cardinal_direction` state, so a placed chest's latch turns to face
-  whoever placed it instead of always pointing the same way.
-- Because the multi-block's axis is a block state rather than a hard-coded "east", two chests pair
-  north-to-south as readily as east-to-west. Two chests placed beside a latch form a pair whose
-  latch keeps facing the player who placed the second one; two chests placed end to end, with no
-  latch on a long face, still pair on the readable side rather than silently staying single.
-- Pairing moved off the same-tick placement event onto a one-tick delay, so the newly placed chest
-  has a block entity before its contents are read. That timing is the root of chests that merged with
-  the wrong contents, or refused to merge at all.
-- If a pair cannot be assembled, both singles are restored with the exact latch they were placed
-  with, and their stacks go back into the chests — or onto the ground at the block — rather than
-  being lost. Merged stacks are still only ever moved, never copied.
+- Added `cardinal_direction` to `bh:chest` so the latch faces the player who placed it.
+- Changed chest pairing so double chests can form on both north-south and east-west axes.
+- Changed chest merging to happen one tick after placement so the block entity exists before inventory data is read.
+- Fixed cases where chests merged with the wrong contents or refused to merge.
+- Changed failed merges to restore both original chests, their facing direction, and their contents.
+- Changed unrecoverable restored items to drop on the ground instead of being lost.
 
 ### Underwater tint
 
-The water overlay is fixed, and it is the second headline bug fix.
-
-- The tint finally fills the whole screen. It used to draw as a small box: the image lived on a HUD
-  panel that declares no size, so its "100%" resolved against nothing and fell back to the texture's
-  native 32×32. It now hangs off the panel the screen itself sizes, and zooms to fill it — the frame
-  oversizes the window and `keep_ratio` scales the texture uniformly — so the tint covers every edge
-  without the stretch of `keep_ratio` off.
-- Leaving the water no longer depends on another system overwriting the same channel by accident.
-  `setTitle("")` stops the title drawing but leaves the old marker in the binding, so the tint only
-  cleared when the armor readout happened to overwrite it. It now pushes a hidden marker of its own,
-  which updates the binding without ever reaching the player's screen.
-- The tint rides the title string rather than the actionbar, because the engine keeps the last
-  actionbar in its factory binding after the fade. The head is checked every tick, so neither edge of
-  a dive lags, and the tint ignores lava — Beta only tinted for water.
+- Fixed the underwater tint so it fills the entire screen instead of rendering as a small 32×32 box.
+- Changed the tint to attach to a screen-sized HUD element and scale while keeping its aspect ratio.
+- Changed the clear behavior so leaving water no longer depends on another HUD system overwriting the same binding.
+- Added a hidden marker specifically for clearing the water overlay.
+- Changed the water check to run every tick so entering and leaving water updates immediately.
+- Kept lava excluded because Beta only used the tint underwater.
 
 ### Something in the fog
 
-We are not going to explain this one. A new and very rare encounter now lives in the Overworld: a
-figure that appears at the edge of your vision, off to one side, and is gone by the time you look
-straight at it. It drops nothing, it is nobody's achievement, and you may not see it at all in your
-first hours of play. It is there because it should be. There is an operator command for the
-impatient, and a note in the code for anyone who goes looking.
+- Added a very rare Overworld encounter that appears near the edge of the player's vision and disappears when looked at directly.
+- Added an operator command for testing it.
+- Added a code note for anyone who goes looking!
 
 ### Other fixes
 
-- Masked blocks. Post-Beta full blocks with no Beta counterpart — beacon, conduit, stonecutter,
-  calibrated sculk sensor and friends — used to be hidden by the resource pack, which punched a
-  see-through hole through the terrain until a script got around to them. They now render as the
-  Beta block they will become, and the fine pass falls back to a real block instead of air when a
-  bulk fill could not run, so a chunk that has not been scrubbed yet never shows a hole.
-- The block atlas registers every Beta shortname the pack's own blocks use, which fixes a
-  resolution collision where two entries borrowed the same vanilla texture path; pointing `magma` at
-  the gravel texture is how gravel inherited the animated tone-map art sitting at that path.
-- The swamp the engine actually uses (`swamp`) now gets Beta's translucent water, not just
-  `swampland`, and the Nether's biomes share a dense hell fog instead of the overworld water fog.
-- The skeleton's attack animation actually plays. The controller referenced an animation named
-  `default`, which does not exist, so skeletons swung nothing.
-- The wooden slab recipe no longer carries the `crafting_table` tag alongside `beta_crafting`, so it
-  is offered only where Beta's crafting rules allow.
-- The inventory screen regained the controller auto-place and coalesce bindings, and the chat screen
-  now assigns input focus when it opens, so touch platforms no longer need a tap before typing.
-- Deleted superseded files: the old single-file Nether biome overrides, the unused structure-set
-  stubs and the dead `netherSpawnProtection`/`ruinedPortalScrubber` modules.
+- Changed masked post-Beta blocks to render as their eventual Beta replacement instead of becoming temporarily invisible.
+- Changed failed fine-pass replacements to fall back to a real block instead of air.
+- Fixed a block-atlas texture collision that could make gravel inherit animated magma-related graphics.
+- Fixed swamp water tinting for the biome identifier the engine actually uses.
+- Changed Nether biomes to use dense Nether fog instead of Overworld water fog.
+- Fixed the skeleton attack animation referencing a nonexistent `default` animation.
+- Removed the `crafting_table` tag from the wooden slab recipe so it only appears under Beta crafting rules.
+- Restored inventory auto-place and coalesce bindings.
+- Fixed chat input focus on touch platforms.
+- Removed the old single-file Nether overrides.
+- Removed unused structure-set stubs.
+- Removed the dead `netherSpawnProtection` and `ruinedPortalScrubber` modules.
 
-## 4.3 — 2026-09-28
+## 4.3 — 2026-10-02
 
-### Chests
+The big feature this time is chests! Finally got them working right.
 
-Chests are real Beta 1.7.3 chests again, and two side by side are one 54-slot chest.
+### Features
+* **Double Chests:** If you place two chests next to each other, they actually merge into one massive 54-slot chest.
+* **Stairs as Real Blocks:** Removed extra modern states (no corner stairs, no upside-down placement). Just flat stairs with four rotations, exactly how it was in Beta 1.7.3.
+* **Bottom-Only Slabs:** Slabs only place flat on the bottom now. No top slabs at all (which also eliminated the geometry y-axis bug).
+* **Vertical-Only Logs:** No sideways logs. Each wood type gets its own classic top and side textures.
 
-- `bh:chest` is a full-cube block whose inventory lives on the block entity, so interacting with it
-  opens 27 slots natively — no script and no container entity are involved. It is immovable by
-  pistons, chopped with an axe, and drops itself.
-- Placing two chests side by side assembles `bh:double_chest`, a two-block multi-block that holds 54
-  slots, each half wearing the left or right face of a single chest.
-- Bedrock gives every part of a multi-block its own block entity and offers no stable API to open one
-  part's container from another, so the pair keeps exactly one half as the items' home and moves the
-  stacks into whichever half a player opens, draining them back once the pair goes idle. Stacks are
-  only ever moved, never copied, so an interrupted session — a crash, a broken chest, an explosion —
-  cannot duplicate or double-drop them.
-- A second player opening the other half is turned away with "This chest is in use" rather than shown
-  an empty container; a second viewer of the same half simply joins it. Offline viewers are swept
-  every 10 ticks so a dropped connection cannot park the pair's contents.
-- Breaking the pair hands back two chests, and the crafting recipe now yields `bh:chest` itself. The
-  chest minecart recipe consumes `bh:chest`, so a chest that survived the inventory sweep can still
-  become a chest minecart.
+### Tweaks & Fixes
+* **Tool Classes:** Swords mine wooden stairs at the proper speed, matching old Beta tool classes.
+* **Post-Beta Mob Cleanup:** Sulfur cubes, bees, armadillos, creakings, and breezes will no longer spawn naturally.
+* **Chunk Scrubber:** Now works in reverse — blocks that did not exist in Beta are wiped out entirely.
 
-### Other changes
+### Behind the Scenes
+* Updated tag schema to `minecraft:tags` across the pack.
+* Cleaned up legacy placers: removed `structurePlacer` and overriding item blueprints.
+* Offline test suite expanded to 176 tests.
 
-- Stairs, slabs and logs are promoted from items to real blocks: oak and cobblestone stairs, wooden,
-  cobblestone, sandstone and stone slabs, and oak, birch and spruce logs all ship as block JSON with
-  a shared stair model. The structure-based placer and its `.mcstructure` files are gone.
-- The chunk scrubber now removes any non-Beta vanilla block instead of only converting the ids it
-  already knows, so modern blocks no longer survive in generated chunks. Bedrock's single
-  `minecraft:planks` block is retyped to oak rather than scrubbed.
-- Post-Beta natural spawners are suppressed with unreachable `the_void` biome filters, and the spawn
-  contract test now covers the full suppression list.
+## 4.2 — 2026-10-02
 
-## 4.2 — 2026-09-27
+Betafied 4.2 makes the addon play nicely with other mods and cuts the download size by ~40MB!
 
-Every destructive policy — inventory removal, item and block conversion, entity drop rewriting,
-spawn-time culling and radius cleanup — now runs behind a vanilla-only check, so only `minecraft:`
-identifiers can be renamed or removed. Content from other addons is left exactly as its author
-shipped it. The resource pack dropped a dead `blocks/` tree and 12 unreferenced music tracks, taking
-the pack from 42.9 MB to 1.3 MB with no in-game change. Deploying became a single command that
-builds, uploads over SFTP and reconciles each server world's pack versions and experiment flags.
+### Features & Improvements
+* **Mod Compatibility:** Everything Betafied removes, converts, or culls is now strictly scoped to the `minecraft:` namespace. Modded items, blocks, dropped entities, and mobs pass straight through untouched.
+* **Huge Pack Size Reduction:** Removed 511 duplicate textures and unused music files from the resource pack. Pack size dropped from 41MB down to 1.3MB with zero in-game visual change.
+* **Scoped Scrubbing:** The cleaner no longer touches non-vanilla items like firearms or custom entities.
 
-## 4.1 — 2026-09-26
+## 4.1 — 2026-10-02
 
-Biome overrides gained the `minecraft:tags` the 4.0 set was missing, restoring mob spawning, and
-spawn rules now reference `minecraft:grass` rather than a non-existent block. Stair, log and slab
-placement moved off the global interact listener onto per-item components, cobblestone stairs became
-a real Beta block, and armor regained durability and damage typing. Block normalization became
-heuristic, resolving any wood stairs to oak and stripped logs to Beta logs.
+Betafied 4.1 focuses on parity fixes, block placement corrections, and mob spawning fixes.
 
-Also in this release:
+### Features & Additions
+* **Cobblestone Stairs:** Added as a real Beta block with authentic structure and texture. Crafting recipe yields classic Beta cobblestone stairs.
+* **Block Normalization:** Wood stairs convert to oak stairs, modern stone stairs convert to cobblestone stairs, and logs/stems normalize to classic Beta logs.
 
-- Fixed authentic Beta 1.7.3 apple drops from trees.
-- Fixed instant inventory and equipment clearing when `builder_exempt` is removed.
+### Tweaks & Fixes
+* **Mob Spawning:** Restored missing biome `minecraft:tags` so plains and desert mob spawn rules function properly.
+* **Stair Placement:** Reworked stair placement so they face correctly without flipping upside-down.
+* **Armor Durability:** Armor takes damage and wears down properly from falls, fire, and lava.
+* **Inventory Cleaner:** Now scrubs armor and offhand slots every tick.
+* **Apple Drops:** Trees no longer drop apples, matching Beta mechanics.
+* **UI Polish:** Cleaned up pause screen passthrough and enabled command autocomplete.
 
-## 4.0 — 2026-09-24
+### Behind the Scenes
+* Test suite expanded to 124 tests, including smoke tests for tags and spawn rules.
 
-Engine rewrite for Beta 1.7.3 parity on Bedrock 1.26.51+: the event bus and tick scheduler replace
-per-subsystem listeners, and the compatibility, normalizer and permission layers are consolidated
-into the core runtime.
+## 4.0 — 2026-10-02
+
+The massive 4.0 rewrite! Fully ported to TypeScript with Regolith and updated for Bedrock 1.26.51+ (Script API 2.11).
+
+### Highlights
+* **Engine Rewrite & EventBus:** Unified tick manager and event bus staggering tasks across ticks to prevent CPU spikes and watchdog timeouts.
+* **Inverse Cleaner & Normalizer:** Swapped rigid block lists for an inverse allowlist and heuristic normalizer.
+* **Block Placement:** Fixed stairs, slabs, and logs placement to match classic Beta.
+* **Sheep Punching:** Bare-handed sheep punching drops 1–3 wool without shears.
+* **Classic Animal AI:** Animals wander freely and panic when struck.
+* **Instant Bonemeal:** Crops grow instantly with classic mechanics.
+* **Java Beta Angles:** Restored original first-person swing and holding angles.
+* **Automated Test Suite:** Initial offline test suite with 78 tests.
