@@ -13,11 +13,12 @@ const CONFIG = Object.freeze({
 const hasFog = new Set<string>();
 
 export function* fogJob(): Generator<void, void, unknown> {
-    const players = world.getAllPlayers();
+    const playerIds = world.getAllPlayers().map(p => p.id);
 
     let processed = 0;
-    for (const player of players) {
-        if (!player.isValid) continue;
+    for (const playerId of playerIds) {
+        const player = world.getAllPlayers().find(p => p.id === playerId);
+        if (!player || !player.isValid) continue;
 
         try {
             const name = player.name;

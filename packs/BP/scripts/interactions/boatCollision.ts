@@ -33,11 +33,12 @@ function breakBoatWithItem(boat: Entity): void {
 
 export function* boatLoopJob(): Generator<void, void, unknown> {
     const overworld = world.getDimension(OVERWORLD_KEY);
-    const boats = overworld.getEntities({ type: "minecraft:boat" });
+    const boatIds = overworld.getEntities({ type: "minecraft:boat" }).map(b => b.id);
 
     let processed = 0;
-    for (const boat of boats) {
-        if (!boat.isValid) continue;
+    for (const boatId of boatIds) {
+        const boat = world.getEntity(boatId);
+        if (!boat || !boat.isValid) continue;
 
         try {
             const loc = boat.location;

@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { boatLoopJob, processBoats } from "../../packs/BP/scripts/interactions/boatCollision.js";
-import { resetMocks, world } from "../mocks/minecraftServer.js";
+import { resetMocks, world, mockEntities } from "../mocks/minecraftServer.js";
 
 describe("Boat Collision Batching & Lifetime Safety", () => {
     beforeEach(() => {
@@ -39,6 +39,32 @@ describe("Boat Collision Batching & Lifetime Safety", () => {
         assert.doesNotThrow(() => {
             while (!job.next().done) {}
         });
+    });
+
+    it("re-resolves entities by ID across yield boundaries without holding live references", () => {
+        const overworld = world.getDimension("minecraft:overworld") as any;
+        const boats: any[] = [];
+        for (let i = 0; i < 15; i++) {
+            boats.push(overworld.spawnEntity("minecraft:boat", { x: i, y: 64, z: 0 }));
+        }
+
+        const job = boatLoopJob();
+        job.next(); // First batch of 10
+
+        // Despawn remaining boats from world and detect if stale references are touched
+        let staleAccessed = false;
+        for (let i = 10; i < 15; i++) {
+            mockEntities.delete(boats[i].id);
+            Object.defineProperty(boats[i], "location", {
+                get() {
+                    staleAccessed = true;
+                    return { x: 0, y: 64, z: 0 };
+                }
+            });
+        }
+
+        while (!job.next().done) {}
+        assert.equal(staleAccessed, false, "stale boat handles from earlier ticks must not be accessed");
     });
 
     it("processBoats drains generator synchronously", () => {

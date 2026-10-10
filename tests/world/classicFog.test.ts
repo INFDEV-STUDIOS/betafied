@@ -44,4 +44,33 @@ describe("Classic Fog Player Sweep Batching", () => {
             while (!job.next().done) {}
         });
     });
+
+    it("re-resolves players by ID across yield boundaries without holding live references", () => {
+        const overworld = world.getDimension("minecraft:overworld") as any;
+        const players: Player[] = [];
+        for (let i = 0; i < 10; i++) {
+            const player = new Player(`player_${i}`);
+            player.dimension = overworld;
+            players.push(player);
+            mockPlayers.push(player);
+        }
+
+        const job = fogJob();
+        job.next(); // First batch of 5
+
+        // Disconnect remaining players from mockPlayers and detect if stale references are touched
+        let staleAccessed = false;
+        mockPlayers.length = 5; // remove remaining players from world
+        for (let i = 5; i < 10; i++) {
+            Object.defineProperty(players[i], "dimension", {
+                get() {
+                    staleAccessed = true;
+                    return overworld;
+                }
+            });
+        }
+
+        while (!job.next().done) {}
+        assert.equal(staleAccessed, false, "stale player handles from earlier ticks must not be accessed");
+    });
 });
