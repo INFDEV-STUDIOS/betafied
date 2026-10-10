@@ -663,7 +663,9 @@ export function* sweepPairsJob(): Generator<void, void, unknown> {
 
 export function sweepPairs(): void {
     const job = sweepPairsJob();
-    while (!job.next().done) {}
+    while (!job.next().done) {
+        // Drain generator synchronously
+    }
 }
 
 interface PairCells {

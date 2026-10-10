@@ -100,7 +100,9 @@ export function* boatLoopJob(): Generator<void, void, unknown> {
 
 export function processBoats(): void {
     const job = boatLoopJob();
-    while (!job.next().done) {}
+    while (!job.next().done) {
+        // Drain generator synchronously
+    }
 }
 
 tickManager.register("boatCollision", CONFIG.TICK_INTERVAL, boatLoopJob, 6);
