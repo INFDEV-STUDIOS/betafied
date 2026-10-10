@@ -222,11 +222,15 @@ test("TickManager Staggered Scheduling & Lifecycle", async (t) => {
         assert.equal(invocations, 1);
         assert.equal(activeJobs.length, 1);
 
-        // Engine steps and throws
+        // Tick 1: reaches yield
+        (system as any).advanceTicks(1);
+        assert.equal(activeJobs.length, 1);
+
+        // Tick 2: resumes and throws, caught by JobRunner, onFinally cleans up
         (system as any).advanceTicks(1);
         assert.equal(activeJobs.length, 0, "failing job is untracked");
 
-        // Tick 2: scheduled interval fires again -> should run because onFinally cleared in-flight state
+        // Tick 2 scheduled interval: task runs again because onFinally cleared in-flight state
         tickManager.step(); // tick 1
         tickManager.step(); // tick 2
         assert.equal(invocations, 2, "task can run again after previous generator error was handled");
