@@ -15,8 +15,12 @@ function capturingDimension(id = "minecraft:overworld", strayBedrockAt: number |
         commands,
         containsBlock(
             volume: { from: { x: number; y: number; z: number }; to: { x: number; y: number; z: number } },
-            filter: { includeTypes?: string[] }
+            filter: { includeTypes?: string[]; excludeTypes?: string[] }
         ) {
+            // The seal probe asks whether anything other than bedrock sits in the Y=0 base. This stub
+            // holds no blocks, so the base reads as unsealed and the floor is laid out - which is what
+            // the assertions read off the fills below.
+            if (filter.excludeTypes?.includes("minecraft:bedrock")) return true;
             if (strayBedrockAt === null) return false;
             if (!filter.includeTypes?.includes("minecraft:bedrock")) return false;
             return volume.from.y <= strayBedrockAt && strayBedrockAt <= volume.to.y;
@@ -30,6 +34,27 @@ function capturingDimension(id = "minecraft:overworld", strayBedrockAt: number |
             const replace = options?.blockFilter?.includeTypes?.[0];
             commands.push(`fill ${from.x} ${from.y} ${from.z} ${to.x} ${to.y} ${to.z} ${block}${replace === undefined ? "" : ` replace ${replace}`}`);
             return { getBlockLocationIterator: () => ([] as { x: number; y: number; z: number }[])[Symbol.iterator]() };
+        }
+    };
+}
+
+/**
+ * Answers the "is there anything but bedrock at Y=0" probe the way an already-sealed chunk does, so
+ * the seal can be shown to short-circuit instead of re-laying ~120 fills.
+ */
+function sealedFloorDimension(id = "minecraft:overworld") {
+    const commands: string[] = [];
+    return {
+        id,
+        heightRange: { min: -64, max: 319 },
+        commands,
+        containsBlock(volume: { from: { y: number } }, filter: { excludeTypes?: string[] }) {
+            if (!filter.excludeTypes?.includes("minecraft:bedrock")) return false;
+            // Nothing above the base layer is asked about by the seal probe.
+            return volume.from.y > 0;
+        },
+        fillBlocks(volume: { from: { x: number; y: number; z: number } }, block: string) {
+            commands.push(`fill ${volume.from.x} ${volume.from.y} ${volume.from.z} ${block}`);
         }
     };
 }
@@ -106,5 +131,21 @@ describe("Beta floor - bedrock above the floor is left alone", () => {
             assert.ok(Number(fy1) <= 2, `expected no write reaching above Y=2, got: ${command}`);
             assert.ok(!command.includes("minecraft:air"), `expected no air clear, got: ${command}`);
         }
+    });
+});
+
+describe("Beta floor - an already-sealed chunk is left alone", () => {
+    it("rebuilds nothing once the Y=0 base is already bedrock", () => {
+        const dim = sealedFloorDimension();
+        solidifyBetaFloor(dim as never, 0, 0);
+
+        assert.deepEqual(dim.commands, [], "a floor that is already sealed must not be laid down again");
+    });
+
+    it("still no-ops outside the Overworld", () => {
+        const nether = sealedFloorDimension("minecraft:the_nether");
+        solidifyBetaFloor(nether as never, 0, 0);
+
+        assert.deepEqual(nether.commands, [], "the floor is an Overworld-only rule");
     });
 });

@@ -11,6 +11,10 @@
 			"ts_transpiler": {
 				"url": "github.com/MajestikButter/Regolith-Filters",
 				"version": "6fa6a6a9298f7d033d0f2e421edfb33292807aae"
+			},
+			"agents_md_strip": {
+				"runWith": "nodejs",
+				"script": "./filters/agents-md-strip/index.js"
 			}
 		},
 		"formatVersion": "1.8.0",
@@ -23,6 +27,12 @@
 					"target": "development"
 				},
 				"filters": [
+					{
+						"filter": "agents_md_strip",
+						"settings": {
+							"path": "."
+						}
+					},
 					{
 						"filter": "ts_transpiler",
 						"settings": {

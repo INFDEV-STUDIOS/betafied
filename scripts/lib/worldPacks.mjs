@@ -73,3 +73,18 @@ export function packVersionDrift(pair, installed) {
   }
   return drift;
 }
+
+/**
+ * Updates declared pack versions to match the version actually installed on the server, so a
+ * stale version in a pack pair file never causes the engine to silently ignore the pack.
+ */
+export function alignInstalledVersions(pair, installed) {
+  const byId = new Map(installed.map((entry) => [entry.uuid, entry.version]));
+  return pair.map((entry) => {
+    const have = byId.get(entry.pack_id);
+    if (have && have.join(".") !== entry.version.join(".")) {
+      return { ...entry, version: have };
+    }
+    return entry;
+  });
+}
