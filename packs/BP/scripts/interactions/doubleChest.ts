@@ -40,6 +40,7 @@ const AIR_ID = "minecraft:air";
 const PART_STATE = "minecraft:multi_block_part";
 const DIRECTION_STATE = "minecraft:cardinal_direction";
 const SWEEP_INTERVAL_TICKS = 10;
+export const CHEST_PAIRS_PER_TICK = 10;
 /** A chest placed this tick has no block entity to read yet, so the merge waits for the next one. */
 const MERGE_DELAY_TICKS = 1;
 
@@ -462,7 +463,7 @@ function moveContents(dimensionId: string, from: ChestLocation, to: ChestLocatio
     return plan.source.filter(stack => stack !== undefined).length;
 }
 
-interface PairSession {
+export interface PairSession {
     dimensionId: string;
     master: ChestLocation;
     shadow: ChestLocation;
@@ -470,7 +471,7 @@ interface PairSession {
     shadowViewers: Set<string>;
 }
 
-const sessions = new Map<string, PairSession>();
+export const sessions = new Map<string, PairSession>();
 
 function sessionFor(key: string, dimensionId: string, resolution: PairResolution): PairSession {
     const existing = sessions.get(key);
@@ -600,7 +601,8 @@ function onlinePlayerIds(): Set<string> | undefined {
     return players.ok ? new Set(players.value.map(player => player.id)) : undefined;
 }
 
-function sweepPairs(): void {
+export function* sweepPairsJob(): Generator<void, void, unknown> {
+    let processed = 0;
     for (const [key, session] of sessions) {
         if (session.masterViewers.size > 0 || session.shadowViewers.size > 0) {
             const online = onlinePlayerIds();
@@ -616,22 +618,52 @@ function sweepPairs(): void {
         // halves held, so there is nothing left to move.
         if (!isHalf(master) || !isHalf(shadow)) {
             sessions.delete(key);
+            processed++;
+            if (processed % CHEST_PAIRS_PER_TICK === 0) {
+                yield;
+            }
             continue;
         }
 
-        if (session.masterViewers.size > 0 || session.shadowViewers.size > 0) continue;
+        if (session.masterViewers.size > 0 || session.shadowViewers.size > 0) {
+            processed++;
+            if (processed % CHEST_PAIRS_PER_TICK === 0) {
+                yield;
+            }
+            continue;
+        }
 
         const shadowHasItems = containerHasItems(session.dimensionId, session.shadow);
-        if (shadowHasItems === undefined) continue;
+        if (shadowHasItems === undefined) {
+            processed++;
+            if (processed % CHEST_PAIRS_PER_TICK === 0) {
+                yield;
+            }
+            continue;
+        }
         if (!shadowHasItems) {
             sessions.delete(key);
+            processed++;
+            if (processed % CHEST_PAIRS_PER_TICK === 0) {
+                yield;
+            }
             continue;
         }
 
         const drained = applyMove(planSweep({ shadowViewers: 0, shadowHasItems }), session);
         // Leftovers mean the master is full; the shadow keeps them until the master has room.
         dropIfIdle(session, key, drained);
+
+        processed++;
+        if (processed % CHEST_PAIRS_PER_TICK === 0) {
+            yield;
+        }
     }
+}
+
+export function sweepPairs(): void {
+    const job = sweepPairsJob();
+    while (!job.next().done) {}
 }
 
 interface PairCells {
@@ -912,4 +944,4 @@ eventBus.onPlayerInteractWithBlock(event => {
     }
 });
 
-tickManager.register("doubleChest:sweep", SWEEP_INTERVAL_TICKS, sweepPairs);
+tickManager.register("doubleChest:sweep", SWEEP_INTERVAL_TICKS, sweepPairsJob);
