@@ -27,10 +27,9 @@ export function parseEnv(contents) {
 /**
  * `.env` values overlaid with the real environment, which wins.
  *
- * regolith.sh sources `.env` before building, but the Node entrypoints run
- * under npm without that shell, so they load it themselves. Keeping the process
- * environment on top lets a one-off `BETAFIED_SFTP_HOST=... npm run push`
- * override the file without editing it.
+ * npm does not export `.env`, so the build and release entrypoints load it themselves
+ * through here. Keeping the process environment on top lets a one-off
+ * `COM_MOJANG=... npm run build` override the file without editing it.
  */
 export function loadEnv(root) {
   const file = path.join(root, ".env");

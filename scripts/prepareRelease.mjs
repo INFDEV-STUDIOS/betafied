@@ -15,9 +15,11 @@
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertArchiveTool, createZip } from "./lib/archive.mjs";
+import { resolveComMojang } from "./lib/comMojang.mjs";
+import { loadEnv } from "./lib/env.mjs";
 import {
   ensureChangelogEntry,
   extractChangelogSection,
@@ -89,17 +91,17 @@ function exportNames() {
 }
 
 /**
- * `com.mojang`, resolved the way `scripts/regolith.sh` resolves it: an inherited `COM_MOJANG`
- * wins, and a `.env` checked in from another machine must not point the packaging step at a
- * directory that does not exist here.
+ * `com.mojang`, resolved the same way `scripts/regolith.mjs` resolves it: the environment
+ * (including `.env`, which npm does not export itself) wins, macOS has one known location,
+ * and Windows needs no default because Regolith finds its own. A missing directory fails
+ * here rather than packaging into a path that does not exist.
  */
 function mojangRoot() {
-  const fromEnv = process.env.COM_MOJANG;
-  if (fromEnv && fs.existsSync(fromEnv)) return fromEnv;
-  return path.join(
-    os.homedir(),
-    "Library/Application Support/Minecraft Bedrock Launcher/MinecraftData/games/com.mojang"
-  );
+  const resolved = resolveComMojang(loadEnv(ROOT));
+  if (!resolved) {
+    fail("could not locate com.mojang — set COM_MOJANG to your Bedrock data directory");
+  }
+  return resolved;
 }
 
 function parseArguments(argv) {
@@ -173,11 +175,11 @@ function writeChangelogEntry(tag, date) {
   return true;
 }
 
-function assertZipAvailable() {
+function assertArchiver() {
   try {
-    execFileSync("zip", ["-v"], { stdio: "ignore" });
-  } catch {
-    fail("the `zip` command is not on PATH, and it is what builds the installers");
+    assertArchiveTool();
+  } catch (err) {
+    fail(err.message);
   }
 }
 
@@ -192,7 +194,7 @@ function agentsMdFiles(root) {
 }
 
 function zipInto(outDir, archive, ...entries) {
-  execFileSync("zip", ["-r", "-X", "-q", archive, ...entries], { cwd: outDir });
+  createZip(path.join(outDir, archive), outDir, entries);
 }
 
 /** Copy an export into the release tree, without the desktop cruft a macOS folder picks up. */
@@ -290,7 +292,7 @@ function main() {
 
   run("npm", ["run", "check"]);
   run("npm", ["run", "build"]);
-  assertZipAvailable();
+  assertArchiver();
   const outDir = packageInstallers(tag);
   console.log(`release:prepare: packaged ${path.relative(ROOT, outDir)}`);
   printNextSteps(tag);
