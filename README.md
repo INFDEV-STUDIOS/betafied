@@ -1,96 +1,207 @@
-# Betafied
+<p align="center">
+  <a href="https://betafied.net">
+    <img src="https://betafied.net/images/betafied-logo-320.webp" alt="Betafied Logo" width="220" />
+  </a>
+</p>
 
-**Betafied** is a Minecraft: Bedrock Edition behavior and resource pack project designed to recreate the mechanics, gameplay dynamics, and terrain aesthetics of **Minecraft Beta 1.7.3**.
+<h1 align="center">Betafied</h1>
 
----
+<p align="center">
+  <strong>A love letter to Minecraft Beta 1.7.3, rebuilt for Bedrock Edition.</strong>
+</p>
 
-## Architecture & Subsystem Decomposition
+<p align="center">
+  <em>Back when the grass was green, the sky was blue, and Creepers were your worst nightmare.</em>
+</p>
 
-The codebase is organized into distinct Behavior Pack (`packs/BP`) and Resource Pack (`packs/RP`) layers, compiled via [Regolith](https://bedrock-oss.github.io/regolith/).
+<p align="center">
+  <a href="https://github.com/retrofit-studios/betafied/releases"><img src="https://img.shields.io/github/v/release/retrofit-studios/betafied?color=5c8a42&label=release&style=flat-square" alt="Latest Release"></a>
+  <a href="https://betafied.net"><img src="https://img.shields.io/badge/website-betafied.net-2b7489?style=flat-square" alt="Website"></a>
+  <a href="https://discord.gg/BxD7jKs2Rb"><img src="https://img.shields.io/badge/discord-join%20community-5865F2?logo=discord&logoColor=white&style=flat-square" alt="Discord"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License: GNU AGPLv3"></a>
+  <a href="https://github.com/retrofit-studios/betafied/actions"><img src="https://img.shields.io/badge/tests-473%20passed-brightgreen?style=flat-square" alt="Tests"></a>
+  <a href="#install"><img src="https://img.shields.io/badge/bedrock-1.26.51+-green?style=flat-square" alt="Bedrock Edition 1.26.51+"></a>
+</p>
 
-### Execution & Lifecycle Model
-
-The TypeScript runtime uses a **pure side-effect self-registration pattern**:
-- `packs/BP/scripts/main.ts` serves as the central orchestration entry point. It imports modular subsystem controllers in order.
-- Each subsystem module subscribes to Minecraft Script API events (`world.beforeEvents`, `world.afterEvents`, `system.runInterval`, `system.runJob`) during module evaluation.
-- No singleton objects are exported unless explicitly consumed across modules, keeping public surfaces clean and preventing circular dependencies.
-
-### Subsystem Breakdown
-
-#### 1. Core Infrastructure (`packs/BP/scripts/core/`)
-- `eventBus.ts` / `tickManager.ts`: Single-entrance event dispatch and the master tick scheduler.
-- `compatibilityPolicy.ts`: Central registry for terrain block replacements, inventory item conversions, entity drop mappings, and shared entity compatibility predicates.
-- `betaRegistry.ts` / `normalizer.ts`: Canonical Beta allowlist plus the heuristic converters projecting modern items, blocks, and drops back onto it.
-- `permissions.ts`: Central authorization and role validation (e.g., `PRIVILEGED_TAGS.BUILDER_EXEMPT`) with rate-limited audit logging.
-- `errorReporter.ts`: Centralized diagnostic logging and error boundary helpers (`reportError`, `runCatching`).
-- `inventoryManager.ts`: Generator-driven inventory scanner restricting items and mechanics not present in Beta 1.7.3.
-
-#### 2. Player Systems (`packs/BP/scripts/player/`)
-- `playerState.ts`: Per-player tick loop stripping offhand items and resetting XP to mirror Beta.
-- `foodAndHealth.ts`: Instant health restoration when consuming food (disabling the modern hunger system).
-- `welcome.ts`: Player join notification and version announcement.
-- `achievements.ts`: In-game milestone tracking.
-
-#### 3. Combat (`packs/BP/scripts/combat/`)
-- `armor.ts`: Beta-accurate linear armor damage reduction formula.
-- `machineGunBow.ts`: Classic rapid-fire bow mechanics.
-
-#### 4. Interactions (`packs/BP/scripts/interactions/`)
-- `placement.ts`: Beta block placement rules, reach distance enforcement, waterlog prevention, and interaction validation.
-- `instantBonemeal.ts`: Instant crop maturation from bone meal.
-- `fenceConnectivity.ts`: Classic fence connection rules.
-- `furnaceMinecart.ts`: Coordinated scheduler managing fuel state, movement physics, rail checking, and collision impulses.
-- `boatCollision.ts`: Restores classic wooden boat impact destruction and drop behavior.
-- `toolMining.ts`: Tool-specific block breaking mechanics (cobweb fast-breaking, redstone mining fatigue).
-- `doubleChest.ts`: Assembles two placed chests into the 54-slot `bh:double_chest` multi-block, planning the pair from the block's cardinal state so a latch keeps facing its placer.
-
-#### 5. World & Terrain (`packs/BP/scripts/world/`)
-- `buildHeightLimit.ts`: Enforces the classic 128-block build ceiling.
-- `dimensionBoundary.ts`: Blocks entry to The End, which does not exist in Beta 1.7.3.
-- `chunkScrubber.ts`: Rewrites loaded chunks back to Beta 1.7.3 through filtered volume queries and native block fills, capping the Overworld at an uneven bedrock floor on Y=0.
-- `underwaterOverlay.ts`: Drives the full-screen Beta water tint off the HUD title channel, checking the head every tick.
-- `classicFog.ts`: Atmospheric density adjustments mimicking early Beta fog distance.
-- `netherIce.ts`: Prevents water creation in the Nether while preserving classic ice block placement.
-- `island.ts`: Void boundary safety island in The End for trapped entities.
-
-#### 6. Mobs (`packs/BP/scripts/mobs/`)
-- `entitySpawnHandler.ts`: Whitelist-based mob spawn validation and legacy drop replacement (e.g., zombies dropping feathers).
-- `entityCleaner.ts`: Generator-driven cleanup job removing modern mob species from loaded chunks.
-- `betaAnimalAI.ts`: Passive mob wander behaviors and persistence adjustments.
-- `pigmanEquipment.ts`: Equips spawned zombie pigmen with the golden sword they always carried.
-- `nightmares.ts`: Beta-authentic sleep disturbance mechanics spawning monsters if beds are inadequately lit.
-- A rare-encounter scheduler, deliberately left unnamed here; see the 5.0 entry in [CHANGELOG.md](CHANGELOG.md) under "Something in the fog".
+<p align="center">
+  <a href="#about">About</a> •
+  <a href="#key-features">Key Features</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="CONTRIBUTING.md">Contributing</a> •
+  <a href="https://betafied.net">Website</a> •
+  <a href="https://discord.gg/BxD7jKs2Rb">Discord</a>
+</p>
 
 ---
 
-## Development & Build Tooling
+## About
 
-### Prerequisites
-- Node.js 18+
-- Python 3.11+ (for desloppify and Regolith filters)
+**Betafied** is an authentic recreation of **Minecraft Beta 1.7.3** running inside modern **Bedrock Edition** (Script API 2.11.0-beta). 
 
-### Scripts
-- `npm run check`: Executes typechecking, linting, and the full test suite.
-- `npm run typecheck`: Validates TypeScript compilation (`tsc --noEmit`).
-- `npm run lint`: Runs ESLint on `packs/BP/scripts`.
-- `npm run build`: Executes the Regolith compiler build.
-- `npm run watch`: Watches for local changes and rebuilds.
-- `npm run generate:biomes`: Regenerates every biome JSON from `scripts/lib/betaBiomes.mjs`, the single source of truth for the Beta biome table.
-- `npm run push`: Builds and uploads the packs to the hosted server over SFTP.
-- `npm run push:world`: Replaces a world on the hosted server with a local `.mcworld`. The pack pair already on the server wins, so the world keeps loading the packs installed there; the world's `level.dat` is patched for Beta APIs, uploaded to a staging directory, verified, and only then swapped in, leaving the replaced world beside it under a timestamped name. The server must be stopped and `--yes` passed — the header of `scripts/pushWorld.mjs` documents every flag.
-- `npm run release`: Creates or updates the GitHub release for the version in `package.json`, titling it `Betafied <version>` with notes taken from the [CHANGELOG.md](CHANGELOG.md) entry and the built `build/<version>/` pack assets attached. Pass `--dry-run` to print the notes without touching GitHub.
-- `npm run wipe-nether`: Filters already-generated Nether chunks out of a live world's LevelDB over SFTP. See [SECURITY.md](SECURITY.md) for the credentials it needs.
+This is not a cosmetic texture pack with a nostalgia filter placed over modern gameplay. It is a ground-up behavioral reconstruction of how Minecraft actually behaved in the summer of 2011: the instant-heal food system, the machine-gun bow, Beta terrain generation, pre-1.8 mob AI, classic physics, and the atmospheric void fog. Modern items, blocks, and mobs are transparently converted to era-appropriate equivalents rather than deleted, keeping the experience pure and seamless.
+
+Betafied is 100% open source under the **[GNU AGPLv3](LICENSE)**. Fork it, run your own server, and build something legendary with it.
 
 ---
 
-## AI Tooling Disclosure
+## Key Features
 
-Betafied is developed with AI coding agents. The maintainer uses them for:
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>⚔️ Combat & Health</h3>
+      <ul>
+        <li><b>Instant Food Healing</b>: Consuming food immediately restores hearts; hunger bar and natural health regeneration are completely removed.</li>
+        <li><b>Rapid-Fire Bow</b>: Classic machine-gun bow mechanics without charging time.</li>
+        <li><b>Authentic Armor Formula</b>: Classic linear damage reduction that scales directly with armor durability.</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🐺 Classic Mobs & AI</h3>
+      <ul>
+        <li><b>Authentic Pre-1.8 Catalog</b>: Only Beta 1.7.3 creatures roam the world; modern species are culled automatically.</li>
+        <li><b>Passive Mob Wandering</b>: Animals roam freely without breeding mechanics or artificial following.</li>
+        <li><b>Nightmare Ambushes</b>: Monsters wake you violently if your bed is placed in an insufficiently lit room.</li>
+        <li><b>Classic Equipment & Drops</b>: Zombie Pigmen carry golden swords; zombies drop feathers.</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🌍 World Generation & Limits</h3>
+      <ul>
+        <li><b>Era Biomes & Ore Spread</b>: Faithful Beta biome layout and vein attempt counts.</li>
+        <li><b>Chunk Scrubber</b>: Dynamically restores modern chunk features back to authentic Beta terrain.</li>
+        <li><b>Classic Build Limits</b>: 128-block height ceiling and uneven bedrock floor at Y=0.</li>
+        <li><b>Dimension Enforcement</b>: Void fog simulation and Nether ice mechanics; The End is blocked.</li>
+      </ul>
+    </td>
+    <td width="50%" valign="top">
+      <h3>🛠️ Period Mechanics</h3>
+      <ul>
+        <li><b>Furnace Minecarts</b>: Real coal fueling, locomotive puffing, and cart collision impulse physics.</li>
+        <li><b>Boat Impacts</b>: Classic wooden boats shatter into wooden planks and sticks upon high-speed collisions.</li>
+        <li><b>Instant Bonemeal</b>: Crops mature instantaneously with a single bone meal.</li>
+        <li><b>Classic Multi-Blocks</b>: Proper 54-slot double chest assembly and classic fence connections.</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-- Writing and extending the test suite
-- Managing merges and release preparation
-- Codebase health scans with [desloppify](https://github.com/peteromallet/desloppify), which flags AI-generated technical debt so it can be cleaned up as each area changes
+### 🔄 Transparent Item & Block Normalization
+When players pick up, mine, or encounter post-Beta items, blocks, or loot, Betafied's generator-driven normalization pipeline automatically converts them into their closest historical equivalents. Builders and staff can bypass conversion using privileged tags (`builder_exempt`).
 
-Agent output goes through `npm run check`, the automated code-health and lint gates, and maintainer review before it is merged. Agents do not create commits or push. The maintainer authors every commit.
+### 🌫️ Something in the Fog...
+> *The changelog will only ever describe it as "something in the fog." Keep your torches lit.*
 
-The code descends from cen0b's original Betafied add-on. Its systems were rewritten during the 4.0 engine rewrite and later releases.
+---
+
+## Quick Start
+
+### For Players
+
+<details open>
+<summary><b>Option A: Join the Official Server (No Download Required)</b></summary>
+<br>
+
+Connect directly to the dedicated multiplayer server. Both behavior and resource packs are downloaded and synced automatically when you connect:
+
+- **Server Address**: `betafied.net`
+- **Port**: Default Bedrock Port (`19132`)
+- **Website**: [betafied.net](https://betafied.net)
+
+</details>
+
+<details>
+<summary><b>Option B: Install Singleplayer / Custom Server (.mcaddon)</b></summary>
+<br>
+
+1. Download the latest `.mcaddon` bundle from [GitHub Releases](https://github.com/retrofit-studios/betafied/releases).
+2. Open the downloaded file with Minecraft Bedrock (the game will automatically import both the Behavior Pack and Resource Pack).
+3. In your world settings:
+   - Activate the **Betafied Behavior Pack**.
+   - Activate the **Betafied Resource Pack**.
+4. Play! Requires Minecraft Bedrock **1.26.51** or newer.
+
+</details>
+
+---
+
+### For Developers
+
+Betafied requires **Node.js 24+** and the **[Regolith](https://bedrock-oss.github.io/regolith/)** compiler toolchain.
+
+```bash
+# 1. Clone repository
+git clone https://github.com/retrofit-studios/betafied.git
+cd betafied
+
+# 2. Install dependencies & Regolith filters
+npm install
+npm run install-filters
+
+# 3. Build packs
+npm run build
+
+# 4. Run the quality gate (typecheck, lint, and 470+ automated tests)
+npm run check
+```
+
+Want to contribute? Check out our step-by-step **[Contributor Guide (CONTRIBUTING.md)](CONTRIBUTING.md)** for local Bedrock environment setup, coding patterns, and guidelines.
+
+---
+
+## Architecture
+
+Betafied is structured into modular subsystems under `packs/BP/scripts/`. TypeScript source files are transpiled to QuickJS-compatible JavaScript through Regolith.
+
+<details>
+<summary><b>Explore Subsystem Directory Layout</b></summary>
+<br>
+
+| Subsystem | Location | Description |
+| --- | --- | --- |
+| **Core** | `packs/BP/scripts/core/` | Event bus dispatching, priority management, tick loop scheduler, and error boundaries. |
+| **Player** | `packs/BP/scripts/player/` | Instant food consumption, health restoration, off-hand stripping, and join banners. |
+| **Combat** | `packs/BP/scripts/combat/` | Rapid-fire bow logic and the linear armor damage reduction formula. |
+| **Interactions** | `packs/BP/scripts/interactions/` | Furnace minecarts, boat collisions, instant bonemeal, block placement rules, and double chests. |
+| **World** | `packs/BP/scripts/world/` | 128-block height ceiling, dimension boundary enforcement, chunk scrubber, bedrock floor, and void fog. |
+| **Mobs** | `packs/BP/scripts/mobs/` | Mob spawning allowlists, post-Beta entity cleaner, animal wandering AI, and nightmare ambushes. |
+
+</details>
+
+---
+
+## Community & Support
+
+- 🌐 **Website**: [betafied.net](https://betafied.net)
+- 💬 **Discord**: [Join the Betafied Community](https://discord.gg/BxD7jKs2Rb) — chat with players, report bugs, share builds, and follow development.
+- 🐛 **Bug Tracker**: [GitHub Issues](https://github.com/retrofit-studios/betafied/issues) — report parity discrepancies or engine issues.
+- 📖 **Contributor Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+## Credits & History
+
+- **Origins**: Betafied originated from **cen0b**'s early Bedrock add-on.
+- **Evolution**: Expanded in 2025 by **xzelleiv**, **Arxance**, **uptightsuperlabs**, and contributors across the Bedrock add-on scene.
+- **Version 4.0 Rewrite**: The entire gameplay engine was rebuilt from the ground up on modern Bedrock Script APIs, establishing the current modular architecture.
+
+---
+
+## A Note on AI Development
+
+Betafied is developed by a few people in close collaboration with AI coding agents.
+
+The agents help write automated test suites, draft changes, and run code-health scans that surface technical debt. Every commit is authored and reviewed by hand, agents do not commit or push independently, and nothing is merged unless the full quality gate (`npm run check`) is green. The AI sometimes writes code, but the behavior it targets comes directly from authentic Minecraft Beta 1.7.3.
+
+---
+
+## License
+
+Distributed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+
+You are free to run, study, modify, and redistribute this software. If you run a modified version on a network or server, you must provide access to the corresponding source code under the AGPLv3.
+
+*Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.*
