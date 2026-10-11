@@ -1,6 +1,7 @@
 import { world, system, Block, Player, Vector3 } from "@minecraft/server";
 import { eventBus } from "../core/eventBus.js";
 import { reportError } from "../core/errorReporter.js";
+import { JobRunner } from "../core/jobRunner.js";
 
 const CONFIG = Object.freeze({
     NIGHT_START: 13000,
@@ -25,16 +26,19 @@ const LIGHT_SOURCES = Object.freeze(new Set([
 
 const NIGHTMARE_MOBS = Object.freeze(["minecraft:zombie", "minecraft:skeleton"] as const);
 
-interface BedInteraction {
+export interface BedInteraction {
     count: number;
-    player: Player;
-    block: Block;
+    playerId: string;
+    dimensionId: string;
+    bedLocation: Vector3;
+    jobId?: number;
     windowExpired: boolean;
     scanComplete: boolean;
     hasLight: boolean | null;
 }
 
-const bedInteractions = new Map<string, BedInteraction>();
+export const nightmareJobRunner = new JobRunner();
+export const bedInteractions = new Map<string, BedInteraction>();
 
 function isNight(): boolean {
     const time = world.getTimeOfDay();
@@ -50,7 +54,7 @@ function isNearBed(player: Player, bedLoc: Vector3): boolean {
     );
 }
 
-function tryTriggerNightmare(bedKey: string): void {
+export function tryTriggerNightmare(bedKey: string): void {
     const record = bedInteractions.get(bedKey);
     if (!record) return;
 
@@ -60,19 +64,35 @@ function tryTriggerNightmare(bedKey: string): void {
 
     bedInteractions.delete(bedKey);
 
-    const { count, player, block, hasLight } = record;
-    if (count === 1 && isNight() && isNearBed(player, block.location) && hasLight === false) {
-        system.runTimeout(() => {
-            if (player.isValid) {
-                spawnNightmare(player, block);
-            }
-        }, CONFIG.SPAWN_DELAY);
+    const { count, playerId, dimensionId, bedLocation, hasLight } = record;
+    if (count !== 1 || !isNight() || hasLight !== false) {
+        return;
     }
+
+    system.runTimeout(() => {
+        const player = world.getAllPlayers().find(p => p.id === playerId);
+        if (!player || !player.isValid || player.dimension.id !== dimensionId) {
+            return;
+        }
+        if (!isNearBed(player, bedLocation)) {
+            return;
+        }
+
+        try {
+            const dim = world.getDimension(dimensionId);
+            const bedBlock = dim.getBlock(bedLocation);
+            if (!bedBlock || !bedBlock.typeId.includes("bed")) {
+                return;
+            }
+            spawnNightmare(player, bedBlock);
+        } catch {
+            // Block query safety
+        }
+    }, CONFIG.SPAWN_DELAY);
 }
 
-function* lightCheckGenerator(block: Block, bedKey: string): Generator<void, void, unknown> {
-    const { x: bx, y: by, z: bz } = block.location;
-    const dim = block.dimension;
+export function* lightCheckGenerator(dimensionId: string, bedLoc: Vector3, bedKey: string): Generator<void, void, unknown> {
+    const { x: bx, y: by, z: bz } = bedLoc;
     const yMin = by - CONFIG.Y_RANGE_DOWN;
     const yMax = by + CONFIG.Y_RANGE_UP;
 
@@ -86,6 +106,7 @@ function* lightCheckGenerator(block: Block, bedKey: string): Generator<void, voi
 
             for (let dy = yMin; dy <= yMax; dy++) {
                 try {
+                    const dim = world.getDimension(dimensionId);
                     const nearbyBlock = dim.getBlock({ x: bx + dx, y: dy, z: bz + dz });
                     if (nearbyBlock && LIGHT_SOURCES.has(nearbyBlock.typeId)) {
                         const record = bedInteractions.get(bedKey);
@@ -157,8 +178,7 @@ function spawnNightmare(player: Player, block: Block): void {
     }
 }
 
-eventBus.onPlayerInteractWithBlock((event) => {
-    const { player, block } = event;
+export function handleBedInteraction(player: Player, block: Block): void {
     if (!block || !block.typeId.includes("bed")) return;
 
     const bedKey = `${block.dimension.id}:${block.location.x},${block.location.y},${block.location.z}`;
@@ -167,15 +187,17 @@ eventBus.onPlayerInteractWithBlock((event) => {
     if (!current) {
         const record: BedInteraction = {
             count: 1,
-            player,
-            block,
+            playerId: player.id,
+            dimensionId: block.dimension.id,
+            bedLocation: { x: block.location.x, y: block.location.y, z: block.location.z },
             windowExpired: false,
             scanComplete: false,
             hasLight: null
         };
-        bedInteractions.set(bedKey, record);
 
-        system.runJob(lightCheckGenerator(block, bedKey));
+        const jobId = nightmareJobRunner.run(lightCheckGenerator(block.dimension.id, block.location, bedKey));
+        record.jobId = jobId;
+        bedInteractions.set(bedKey, record);
 
         system.runTimeout(() => {
             const entry = bedInteractions.get(bedKey);
@@ -186,14 +208,28 @@ eventBus.onPlayerInteractWithBlock((event) => {
         }, CONFIG.INTERACTION_WINDOW);
     } else {
         current.count += 1;
+        if (current.jobId !== undefined) {
+            nightmareJobRunner.cancel(current.jobId);
+        }
         bedInteractions.delete(bedKey);
     }
-});
+}
 
-eventBus.onPlayerLeave((event) => {
+export function handlePlayerLeave(event: { playerId: string }): void {
     for (const [key, record] of bedInteractions) {
-        if (record.player?.id === event.playerId) {
+        if (record.playerId === event.playerId) {
+            if (record.jobId !== undefined) {
+                nightmareJobRunner.cancel(record.jobId);
+            }
             bedInteractions.delete(key);
         }
     }
+}
+
+eventBus.onPlayerInteractWithBlock((event) => {
+    handleBedInteraction(event.player, event.block);
+});
+
+eventBus.onPlayerLeave((event) => {
+    handlePlayerLeave(event);
 });

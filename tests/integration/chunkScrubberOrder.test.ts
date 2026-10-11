@@ -1,7 +1,18 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mockPlayers } from "../mocks/minecraftServer.js";
 import { chunkScanJob } from "../../packs/BP/scripts/world/chunkScrubber.js";
+
+// A refused volume query reports through the ambient Bedrock console, so capture it rather than let
+// the line land in the test output.
+function captureWarnings(): { lines: string[]; restore: () => void } {
+    const lines: string[] = [];
+    const original = console.warn;
+    console.warn = (message?: unknown) => {
+        lines.push(String(message));
+    };
+    return { lines, restore: () => { console.warn = original; } };
+}
 
 /**
  * Minimal dimension stub for the scan loop. The floor seal only needs runCommand, and the fine sweep
@@ -25,8 +36,11 @@ function scanDimension(
         isChunkLoaded(location: { x: number; y: number; z: number }) {
             return !isUnloaded(location);
         },
-        containsBlock() {
-            return false;
+        containsBlock(_volume: unknown, filter?: { excludeTypes?: string[] }) {
+            // The seal probe asks for anything that is not bedrock in the Y=0 layer. Report the base as
+            // unsealed so every pass lays its floor and the visit order can be read off the fills; every
+            // other probe (the bulk table, the fallen-log scan) still answers "nothing present".
+            return Boolean(filter?.excludeTypes?.includes("minecraft:bedrock"));
         },
         getBlocks() {
             return { getBlockLocationIterator: () => ([] as { x: number; y: number; z: number }[])[Symbol.iterator]() };
@@ -54,8 +68,15 @@ function baseChunks(commands: string[]): Set<string> {
 }
 
 describe("Chunk scrubber - visit order", () => {
+    let warnings: { lines: string[]; restore: () => void };
+
     beforeEach(() => {
         mockPlayers.length = 0;
+        warnings = captureWarnings();
+    });
+
+    afterEach(() => {
+        warnings.restore();
     });
 
     it("seals the player's own chunk before the ring around it", () => {
@@ -108,6 +129,32 @@ describe("Chunk scrubber - visit order", () => {
                 );
             }
         }
+    });
+
+    it("reports a refused fine query once for the whole neighbourhood", () => {
+        const commands: string[] = [];
+        const dimension = scanDimension(commands);
+        // The engine refuses the volume query on every band of every chunk. Reported per chunk that
+        // was nine lines per neighbourhood sweep, forever; the refusal is one condition about the
+        // engine, so it is one line.
+        dimension.getBlocks = () => {
+            throw new Error("the volume query is unavailable");
+        };
+
+        mockPlayers.push({ isValid: true, location: { x: 3000, y: 13, z: 3000 }, dimension } as never);
+
+        // One chunk is sealed per pass, so the neighbourhood takes one pass per chunk.
+        for (let pass = 0; pass < 9; pass++) {
+            drain(chunkScanJob());
+        }
+
+        assert.equal(
+            warnings.lines.filter(line => line.includes("during fineScrubQuery")).length,
+            1,
+            `expected one line for nine chunks, got: ${warnings.lines.join(" | ")}`
+        );
+        // The sweep still did its work; silencing the report must not be done by skipping the pass.
+        assert.equal(baseChunks(commands).size, 9, "the whole neighbourhood must still be sealed");
     });
 
     it("moves on while the chunk under the player is still mid-sweep", () => {

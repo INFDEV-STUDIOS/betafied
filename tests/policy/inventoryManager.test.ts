@@ -13,7 +13,8 @@ import {
 import {
     evaluateItemAction,
     processInventory,
-    processPlayers
+    processPlayers,
+    inventorySweepJob
 } from "../../packs/BP/scripts/core/inventoryManager.js";
 import { PRIVILEGED_TAGS } from "../../packs/BP/scripts/core/permissions.js";
 import { eventBus } from "../../packs/BP/scripts/core/eventBus.js";
@@ -148,7 +149,8 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
             "minecraft:wooden_door",
             "minecraft:iron_door",
             "minecraft:oak_sign",
-            "minecraft:bucket"
+            "minecraft:bucket",
+            "minecraft:cake"
         ];
 
         for (const typeId of unstackableUtilities) {
@@ -170,6 +172,90 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
                 assert.equal(action.type, "keep");
             });
         }
+
+        it("marks stacked bh:bow for unstacking", () => {
+            const item = new ItemStack("bh:bow", 2);
+            const action = evaluateItemAction(item);
+
+            assert.equal(action.type, "unstack_utility");
+            if (action.type === "unstack_utility") {
+                assert.equal(action.targetId, "bh:bow");
+                assert.equal(action.totalAmount, 2);
+            }
+        });
+    });
+
+    describe("Beta Food Unstacking", () => {
+        const unstackableFoods = [
+            "bh:apple",
+            "bh:bread",
+            "bh:porkchop",
+            "bh:cooked_porkchop",
+            "bh:cod",
+            "bh:cooked_cod",
+            "bh:golden_apple"
+        ];
+
+        for (const typeId of unstackableFoods) {
+            it(`marks stacked ${typeId} (amount > 1) for unstacking`, () => {
+                const item = new ItemStack(typeId, 4);
+                const action = evaluateItemAction(item);
+
+                assert.equal(action.type, "unstack_food");
+                if (action.type === "unstack_food") {
+                    assert.equal(action.convertedId, typeId);
+                    assert.equal(action.totalAmount, 4);
+                }
+            });
+
+            it(`keeps single ${typeId} (amount === 1) as-is`, () => {
+                const item = new ItemStack(typeId, 1);
+                const action = evaluateItemAction(item);
+
+                assert.equal(action.type, "keep");
+            });
+        }
+
+        it("keeps cookie stacks within the era limit of 8", () => {
+            const item = new ItemStack("bh:cookie", 8);
+            const action = evaluateItemAction(item);
+
+            assert.equal(action.type, "keep");
+        });
+
+        it("unstacks cookies exceeding the era limit of 8", () => {
+            const item = new ItemStack("bh:cookie", 12);
+            const action = evaluateItemAction(item);
+
+            assert.equal(action.type, "unstack_food");
+            if (action.type === "unstack_food") {
+                assert.equal(action.convertedId, "bh:cookie");
+                assert.equal(action.totalAmount, 12);
+            }
+        });
+
+        it("splits a stacked food into single slots across the inventory during sweep", () => {
+            const player = new Player();
+            player.name = "FoodSteve";
+            player.id = "food_steve_1";
+            player.gameMode = GameMode.Survival;
+
+            const inv = new Container(36);
+            inv.setItem(0, new ItemStack("bh:porkchop", 4));
+            player.setComponent(EntityComponentTypes.Inventory, { container: inv });
+
+            processInventory(player);
+
+            assert.equal(inv.getItem(0)?.typeId, "bh:porkchop");
+            assert.equal(inv.getItem(0)?.amount, 1);
+            assert.equal(inv.getItem(1)?.typeId, "bh:porkchop");
+            assert.equal(inv.getItem(1)?.amount, 1);
+            assert.equal(inv.getItem(2)?.typeId, "bh:porkchop");
+            assert.equal(inv.getItem(2)?.amount, 1);
+            assert.equal(inv.getItem(3)?.typeId, "bh:porkchop");
+            assert.equal(inv.getItem(3)?.amount, 1);
+            assert.equal(inv.getItem(4), undefined);
+        });
     });
 
     describe("Equipment & Armor Slot Clearing", () => {
@@ -447,6 +533,58 @@ describe("Inventory Manager Item Normalization & Unstacking", () => {
             if (action.type === "replace") {
                 assert.equal(action.item.amount, 7, "the whole stack must ride across");
             }
+        });
+    });
+
+    describe("Inventory Sweep Generator Time-Slicing", () => {
+        it("yields every 2 players during a multi-player sweep", () => {
+            mockPlayers.length = 0;
+            const p1 = new Player("p1");
+            const p2 = new Player("p2");
+            const p3 = new Player("p3");
+            mockPlayers.push(p1, p2, p3);
+
+            (system as any).currentTick = 0;
+
+            const job = inventorySweepJob();
+            const step1 = job.next();
+            assert.equal(step1.done, false, "generator yields after 2 players");
+
+            const step2 = job.next();
+            assert.equal(step2.done, true, "generator completes after all players processed");
+
+            mockPlayers.length = 0;
+        });
+
+        it("synchronous processPlayers() processes all players in one call", () => {
+            mockPlayers.length = 0;
+            const p1 = new Player("p1");
+            const p2 = new Player("p2");
+            const p3 = new Player("p3");
+            mockPlayers.push(p1, p2, p3);
+
+            (system as any).currentTick = 0;
+
+            assert.doesNotThrow(() => {
+                processPlayers();
+            });
+
+            mockPlayers.length = 0;
+        });
+
+        it("skips invalid player handles safely without throwing", () => {
+            mockPlayers.length = 0;
+            const p1 = new Player("p1");
+            p1.isValid = false;
+            mockPlayers.push(p1);
+
+            (system as any).currentTick = 0;
+
+            const job = inventorySweepJob();
+            const res = job.next();
+            assert.equal(res.done, true);
+
+            mockPlayers.length = 0;
         });
     });
 });

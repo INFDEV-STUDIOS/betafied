@@ -58,7 +58,7 @@ describe("Beta Mob Shading - resource pack contract", () => {
     it("shades every declared beta mob without dropping the vanilla render body", () => {
         const shipped = controllers();
 
-        for (const [identifier, controller] of Object.entries(MOB_CONTROLLERS)) {
+        for (const identifier of Object.keys(MOB_CONTROLLERS)) {
             const definition = shipped[identifier];
             assert.ok(definition, `missing shaded render controller for ${identifier}`);
 

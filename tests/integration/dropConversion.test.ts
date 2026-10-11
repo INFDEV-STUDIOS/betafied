@@ -17,6 +17,7 @@ function brokenDrop(typeId: string, amount = 1): { entity: any; spawned: Spawned
 
     const entity: any = {
         isValid: true,
+        hasTag: () => false,
         typeId: "minecraft:item",
         location: { x: 4, y: 64, z: 12 },
         dimension: {

@@ -100,7 +100,7 @@ Resolved here:
   missing, so the death drop resolves the sheep's colour the way the shear table already did.
 - The zombie feather drop was removed from `entitySpawnHandler`; `loot_tables/entities/zombie.json` is
   now the single owner of that drop.
-- `swordMining.SWORD_FAST_BLOCKS` dropped the legacy ids (`web`, `leaves`, `leaves2`, `wooden_stairs`,
+- `toolMining.SWORD_FAST_BLOCKS` dropped the legacy ids (`web`, `leaves`, `leaves2`, `wooden_stairs`,
   `wool`) that never resolve on this engine, and takes its palette from `betaRegistry.WOOL_BY_COLOR`.
 
 Still open, and genuinely engine-dependent: the pack's own fishing tables sit at
@@ -148,6 +148,78 @@ the same mechanism, but no rule override has been proven yet); (2) that no moder
 outside the 14 listed in `tests/smoke/fallenTrees.test.ts` still fires — the `/place` command's
 rule list is where those identifiers came from; (3) that the triangle scatter lands lapis's peak
 where intended.
+
+## 8. Farmland trampling is re-added by script, and only half of it (needs an in-game look)
+
+Beta 1.7.3's trampling lived in the engine, not in the farmland block: `Entity.moveEntity` resolved the
+walked block as `floor(posY - 0.2)`, fired that block's `onEntityWalking` once per 1/0.6 blocks of
+horizontal travel, and `BlockFarmland.onEntityWalking` answered with `rand.nextInt(4) == 0` → dirt.
+Bedrock only tramples farmland when something *lands* on it, so the walking half was missing entirely —
+`interactions/cropTrampling.ts` re-adds it, keeping the era's step cadence, its 1-in-4 roll, and both
+of the exemptions that second line carried.
+
+Decided and implemented:
+
+- **The fence trick is fence-specific.** The maintainer described it as "a block placed under the
+  farmland", but the 1.7.3 call site swapped the walked block for the block beneath it only when that
+  block was `Block.fence`; every other block was irrelevant. `isFenceBlock` therefore follows the fence
+  family (`bh:fence`, `minecraft:fence`, `*_fence`) and deliberately not fence gates. A vanilla gate
+  left by terrain or a command protects nothing; a *placed* one is retyped onto `bh:fence` and does.
+- **The sneak exemption is the era's own rule.** `var18 = this.onGround && this.isSneaking()` gated the
+  callback, so a sneaking player on the ground never trampled — and a sneaking entity in mid-air still
+  did. Both halves are pinned by tests.
+- **A rider tramples nothing with their own feet.** The same condition carried `ridingEntity == null`, so
+  a player crossing a farm on a horse left no trample behind; the mount still tramples, because it is an
+  entity walking in its own right, exactly as it would have in 1.7.3.
+- **Mobs trample, not only players.** `canTriggerWalking()` was true for every entity, and the mob
+  sweep covers animals within 24 blocks of a player. This is the constant to reconsider first if a
+  server finds animal trampling too punishing.
+- **Creative and Spectator are exempt from the walking rule only.** Neither mode has a Beta
+  counterpart, and a builder flying over a farm should not convert it back to dirt — but that reasoning
+  belongs to the behaviour this module *adds*. The landing guard serves every mode, because it is undoing
+  an engine behaviour the era never had, and the engine tramples in Creative exactly as it does in
+  Survival. Gating the guard on the mode hid the whole feature from a creative-mode builder through a
+  day of testing: the log read `mode=Creative watch=0 fix=0` while a farm turned to dirt under a jump.
+- **Bedrock's landing trample is undone, not prevented.** 1.7.3 never looked at `fallDistance`, so a
+  standing jump trampled nothing; Bedrock tramples on any landing, fence or no fence, which made
+  jumping on a farm destroy it. The engine converts the block inside its own tick with no script hook
+  in front of it, so the module watches the column a falling entity is heading for, and puts the
+  farmland (moisture included) and its crop (growth included) back from that snapshot, clearing the
+  crop drops the break spawned so the restore cannot be farmed for free. This is also what makes the
+  fence trick total again, as it was in the era. The snapshot is taken for every sampled entity on
+  every pass and asks `Entity.isOnGround` nothing: that property is documented to behave unexpectedly,
+  and skipping the pass before a landing is the one mistake this guard cannot recover from. The
+  passability question during the downward scan is answered by a small set of block types rather than
+  by `Block.isSolid`, which is pre-release surface — see the `betafied/no-beta-api` warnings.
+- **The walking rule takes the crop down itself, and pays the era's drop for it.** Waiting for
+  Bedrock's neighbour update to pop the crop is a dependency on engine behaviour this module cannot
+  check offline, and a plant left standing on dirt is the visible half of the trample — so the crop is
+  broken explicitly, before the farmland is set to dirt (afterwards the engine's own update would be
+  free to pop it and pay the modern loot table instead). The drop is `cropDropsFor`: `BlockCrops` in
+  1.7.3 answered `idDropped(meta) -> meta == 7 ? Item.wheat : -1` and then ran three independent
+  `rand.nextInt(15) <= meta` seed rolls, so a ripe crop pays one wheat and up to three seeds and an
+  unripe one can pay nothing at all — not the guaranteed seed modern versions hand out. **Wheat is the
+  only crop this models, on purpose**: carrots, potatoes, melons and beetroot all post-date 1.7.3, the
+  block registry agrees, and a post-Beta crop growing on a farm belongs to `compatibilityPolicy` — so it
+  is left standing rather than silently deleted with no drop.
+
+Still open:
+
+- **The correction is visible for a tick.** The tile is dirt and the crop is popped until the pass
+  that restores them, which is one tick if that pass lands after the engine's, two if before. Needs an
+  in-game look to decide whether that flicker is acceptable.
+- **The drop sweep is scoped by radius and item id.** A harvest the engine spawned when it popped a
+  crop is removed from the crop cell within 0.9 blocks of its centre, so a restore cannot be farmed for
+  free; a seed a player dropped into that exact spot in that same tick would go with it.
+- **Mob landings are best-effort.** Mobs are swept every other pass, so a mob that crosses more
+  columns between two sweeps than the lookahead covers (`LANDING_LOOKAHEAD`, three) can still trample a
+  tile nothing watched. Players are watched every tick, which makes the same lookahead worth about four
+  blocks of travel a tick for them — further than a sprint-jump, an elytra glide or a knockback slide
+  normally moves.
+- **The landing guard cannot be verified offline at all.** It was confirmed in game once, through
+  temporary `cropTrampling:` traces that have since been removed: the guard watched the right tile, read
+  the farmland under the crop correctly, and was skipped entirely in Creative — which is the bug those
+  traces were written to find. Re-adding a trace is the way to check it again.
 
 ## Why this file exists
 

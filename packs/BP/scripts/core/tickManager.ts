@@ -1,5 +1,6 @@
 import { system } from "@minecraft/server";
 import { runCatching } from "./errorReporter.js";
+import { JobRunner } from "./jobRunner.js";
 
 export type TaskCallback = () => void | Generator<void, void, unknown>;
 
@@ -17,6 +18,8 @@ export interface ScheduledTask {
  */
 export class TickManager {
     private tasks = new Map<string, ScheduledTask>();
+    private readonly jobRunner = new JobRunner();
+    private readonly inFlightJobs = new Map<string, number>();
     private masterIntervalId: number | null = null;
     private currentTick: number = 0;
 
@@ -39,6 +42,11 @@ export class TickManager {
      * Unregisters a task by its unique identifier.
      */
     unregister(id: string): void {
+        const inFlight = this.inFlightJobs.get(id);
+        if (inFlight !== undefined) {
+            this.jobRunner.clear(inFlight);
+            this.inFlightJobs.delete(id);
+        }
         this.tasks.delete(id);
     }
 
@@ -71,10 +79,21 @@ export class TickManager {
         const tick = this.currentTick++;
         for (const task of this.tasks.values()) {
             if ((tick - task.offset) % task.intervalTicks === 0) {
+                if (this.inFlightJobs.has(task.id)) continue;
+
                 runCatching({ system: "tickManager", operation: `task:${task.id}` }, () => {
                     const result = task.task();
                     if (result && typeof result[Symbol.iterator] === "function") {
-                        system.runJob(result);
+                        const jobId = this.jobRunner.run(result, {
+                            system: "tickManager",
+                            operation: `task:${task.id}`,
+                            onFinally: () => {
+                                this.inFlightJobs.delete(task.id);
+                            }
+                        });
+                        if (jobId >= 0) {
+                            this.inFlightJobs.set(task.id, jobId);
+                        }
                     }
                 });
             }
@@ -99,6 +118,8 @@ export class TickManager {
             system.clearRun(this.masterIntervalId);
             this.masterIntervalId = null;
         }
+        this.jobRunner.clearAll();
+        this.inFlightJobs.clear();
         this.currentTick = 0;
     }
 }

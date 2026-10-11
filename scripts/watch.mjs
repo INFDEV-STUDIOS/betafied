@@ -7,6 +7,9 @@ import path from "node:path";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const debounceMs = 200;
 
+// Windows has no extensionless `npm` on PATH for a non-shell spawn; the CLI is `npm.cmd`.
+const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
+
 const targets = [
   { path: path.join(root, "packs"), recursive: true },
   { path: path.join(root, "config.json"), recursive: false },
@@ -39,7 +42,7 @@ async function runPipeline() {
   const started = Date.now();
   process.stdout.write("\n[watch] change detected, checking types and lint...\n");
 
-  const checkCode = await executeCommand("npm", ["run", "check"]);
+  const checkCode = await executeCommand(NPM, ["run", "check"]);
   if (checkCode !== 0) {
     running = false;
     process.stderr.write(`[watch] ❌ typecheck/lint failed (exit ${checkCode}). Build aborted.\n`);
@@ -51,7 +54,7 @@ async function runPipeline() {
   }
 
   process.stdout.write("[watch] ✔ checks passed. Running Regolith build...\n");
-  const buildCode = await executeCommand("scripts/regolith.sh", ["run"]);
+  const buildCode = await executeCommand(process.execPath, [path.join(root, "scripts", "regolith.mjs"), "run"]);
   running = false;
   const ms = Date.now() - started;
   if (buildCode === 0) {

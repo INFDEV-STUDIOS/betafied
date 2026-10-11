@@ -144,10 +144,6 @@
         "minecraft:attack": {
           "damage": 4
         },
-        "minecraft:behavior.breed": {
-          "priority": 7
-        },
-
         "minecraft:behavior.owner_hurt_by_target": {
           "priority": 1
         },
@@ -165,25 +161,7 @@
           ],
           "must_see": true
         },
-
         "minecraft:sittable": {
-        },
-        "minecraft:is_dyeable": {
-          "interact_text": "action.interact.dye"
-        },
-
-        "minecraft:leashable": {
-          "soft_distance": 4.0,
-          "hard_distance": 6.0,
-          "max_distance": 10.0,
-          "on_leash": {
-            "event": "minecraft:on_leash",
-            "target": "self"
-          },
-          "on_unleash": {
-            "event": "minecraft:on_unleash",
-            "target": "self"
-          }
         }
       }
     },

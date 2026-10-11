@@ -15,8 +15,7 @@ build/
 *.mcworld
 
 # AI & Agent configurations, prompts, and planning artifacts
-# AGENTS.md is deliberately absent: agent tooling hides files matched here, so it is
-# ignored per-clone via .git/info/exclude instead. Re-apply it after a fresh clone.
+AGENTS.md
 CLAUDE.md
 GEMINI.md
 .agents/
@@ -29,7 +28,12 @@ scorecard.png
 # Local offline documentation corpus (scripts/fetch-reference-docs.sh)
 reference-docs/
 
-# Working copies of server worlds pulled down by scripts/wipeNether.mjs and unpacked by
-# scripts/pushWorld.mjs
+# Private deployment tooling (push builds and uploads to the hosted server). Kept out of
+# the public repo so contributors never need server credentials; split into its own project
+# when it outgrows the checkout.
+betafied-manager/
+
+# Local working copies of server worlds, left over from the world tools that used to live
+# here. Still ignored so they never enter history.
 .betafied-wipe/
 .betafied-world/

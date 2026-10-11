@@ -18,6 +18,7 @@ const CONFIG = Object.freeze({
     OBSTACLE_HOP_CHANCE: 0.85,
     CROWD_HOP_CHANCE: 0.65,
     WATER_HOP_CHANCE: 0.70,
+    ANIMALS_PER_TICK: 10,
     WANDER_HOP_CHANCE: 0.15
 });
 
@@ -164,22 +165,49 @@ export function doHop(entity: Entity): void {
  * Player-scoped generator job to prevent O(N^2) global dimension queries.
  * Scans active player view radii for passive animals and applies Beta hop physics.
  */
+function tryAnimalHop(entity: Entity, dimension: Dimension, currentTick: number): void {
+    const hurtEnd = hurtCooldowns.get(entity.id);
+    if (hurtEnd && currentTick < hurtEnd) return;
+    if (hurtEnd) hurtCooldowns.delete(entity.id);
+
+    const jumpEnd = jumpCooldowns.get(entity.id);
+    if (jumpEnd && currentTick < jumpEnd) return;
+
+    try {
+        const vel = entity.getVelocity();
+        if (Math.abs(vel.y) > 0.15) return;
+    } catch {
+        return;
+    }
+
+    if (!evaluateHopConditions(entity, dimension)) return;
+
+    doHop(entity);
+
+    const cooldown = CONFIG.JUMP_COOLDOWN_MIN +
+        Math.floor(Math.random() * (CONFIG.JUMP_COOLDOWN_MAX - CONFIG.JUMP_COOLDOWN_MIN));
+    jumpCooldowns.set(entity.id, currentTick + cooldown);
+}
+
 export function* animalJumpJob(): Generator<void, void, unknown> {
-    const players = world.getAllPlayers();
-    if (players.length === 0) return;
+    const playerIds = world.getAllPlayers().map(p => p.id);
+    if (playerIds.length === 0) return;
 
     const currentTick = tickManager.getCurrentTick();
     const processedIds = new Set<string>();
+    let evaluated = 0;
 
-    for (const player of players) {
-        if (!player.isValid) continue;
+    for (const playerId of playerIds) {
+        const player = world.getAllPlayers().find(p => p.id === playerId);
+        if (!player || !player.isValid) continue;
 
-        let entities: Entity[];
+        let animalIds: string[];
         try {
-            entities = player.dimension.getEntities({
+            const nearby = player.dimension.getEntities({
                 location: player.location,
                 maxDistance: CONFIG.PLAYER_RADIUS
             });
+            animalIds = nearby.filter(e => PASSIVE_MOBS.has(e.typeId)).map(e => e.id);
         } catch (e) {
             reportError({
                 system: "betaAnimalAI",
@@ -189,38 +217,30 @@ export function* animalJumpJob(): Generator<void, void, unknown> {
             continue;
         }
 
-        for (const entity of entities) {
-            if (!entity.isValid) continue;
-            if (!PASSIVE_MOBS.has(entity.typeId)) continue;
+        for (const animalId of animalIds) {
+            const currentPlayer = world.getAllPlayers().find(p => p.id === playerId);
+            if (!currentPlayer || !currentPlayer.isValid) break;
+
+            const entity = world.getEntity(animalId);
+            if (!entity || !entity.isValid) continue;
             if (processedIds.has(entity.id)) continue;
             processedIds.add(entity.id);
 
-            const hurtEnd = hurtCooldowns.get(entity.id);
-            if (hurtEnd && currentTick < hurtEnd) continue;
-            if (hurtEnd) hurtCooldowns.delete(entity.id);
-
-            const jumpEnd = jumpCooldowns.get(entity.id);
-            if (jumpEnd && currentTick < jumpEnd) continue;
-
             try {
-                const vel = entity.getVelocity();
-                if (Math.abs(vel.y) > 0.15) continue;
-            } catch {
-                continue;
+                tryAnimalHop(entity, currentPlayer.dimension, currentTick);
+            } catch (e) {
+                reportError({
+                    system: "betaAnimalAI",
+                    operation: "processAnimal",
+                    target: entity.id
+                }, e);
             }
 
-            if (!evaluateHopConditions(entity, player.dimension)) continue;
-
-            doHop(entity);
-
-            const cooldown = CONFIG.JUMP_COOLDOWN_MIN +
-                Math.floor(Math.random() * (CONFIG.JUMP_COOLDOWN_MAX - CONFIG.JUMP_COOLDOWN_MIN));
-            jumpCooldowns.set(entity.id, currentTick + cooldown);
-
-            yield;
+            evaluated++;
+            if (evaluated % CONFIG.ANIMALS_PER_TICK === 0) {
+                yield;
+            }
         }
-
-        yield;
     }
 }
 

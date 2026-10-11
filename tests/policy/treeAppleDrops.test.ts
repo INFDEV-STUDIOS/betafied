@@ -145,4 +145,57 @@ describe("Authentic Beta 1.7.3 Leaf Apple Drops Policy", () => {
         eventBus.dispatch("entitySpawn", { entity: appleEntity });
         assert.equal(spawnedItems[0]?.typeId, "bh:apple", "Player death apple drop must land on the id the inventory keeps");
     });
+
+    it("identifies and prevents stick drops when leaves are broken by a player", () => {
+        const dim = world.getDimension("minecraft:overworld") as any;
+
+        eventBus.dispatch("playerBreakBlock", {
+            block: { dimension: dim, x: 10, y: 70, z: 20 },
+            brokenBlockPermutation: BlockPermutation.resolve("minecraft:oak_leaves")
+        });
+
+        const stickEntity = new Entity();
+        stickEntity.typeId = "minecraft:item";
+        stickEntity.location = { x: 10.5, y: 70.2, z: 20.5 };
+        stickEntity.dimension = dim;
+
+        const itemStack = new ItemStack("minecraft:stick", 1);
+        stickEntity.setComponent(EntityComponentTypes.Item, { itemStack });
+
+        assert.equal(isTreeAppleDrop(stickEntity), true, "Stick from broken leaf block must be identified as tree drop");
+
+        eventBus.dispatch("entitySpawn", { entity: stickEntity });
+        assert.equal(stickEntity.isRemoved, true, "Stick entity from broken leaves must be removed");
+    });
+
+    it("identifies and prevents stick drops from natural leaf decay near trees", () => {
+        const dim = world.getDimension("minecraft:overworld") as any;
+
+        dim.setBlock({ x: 50, y: 72, z: 50 }, {
+            typeId: "minecraft:oak_leaves",
+            permutation: BlockPermutation.resolve("minecraft:oak_leaves")
+        });
+
+        const stickEntity = new Entity();
+        stickEntity.typeId = "minecraft:item";
+        stickEntity.location = { x: 50.5, y: 71.5, z: 50.5 };
+        stickEntity.dimension = dim;
+
+        const itemStack = new ItemStack("minecraft:stick", 1);
+        stickEntity.setComponent(EntityComponentTypes.Item, { itemStack });
+
+        assert.equal(isTreeAppleDrop(stickEntity), true, "Stick from decaying leaves must be identified as tree drop");
+
+        eventBus.dispatch("entitySpawn", { entity: stickEntity });
+        assert.equal(stickEntity.isRemoved, true, "Stick entity from leaf decay must be removed");
+    });
+
+    it("removes non-Beta entities on entityLoad as well as entitySpawn", () => {
+        const traderEntity = new Entity();
+        traderEntity.typeId = "minecraft:wandering_trader";
+        traderEntity.location = { x: 10, y: 64, z: 10 };
+
+        eventBus.dispatch("entityLoad", { entity: traderEntity });
+        assert.equal(traderEntity.isRemoved, true, "Modern mob must be removed when loaded from disk");
+    });
 });

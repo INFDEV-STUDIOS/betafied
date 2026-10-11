@@ -10,9 +10,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 describe("Release version derivation", () => {
   it("collapses a semver triple to the major.minor tag the packs use", () => {
     assert.equal(releaseVersionFrom("5.2.0"), "5.2");
-    assert.equal(releaseVersionFrom("4.3.1"), "4.3");
+    assert.equal(releaseVersionFrom("4.3.0"), "4.3");
     assert.equal(releaseVersionFrom(" 5.0.0 "), "5.0");
     assert.equal(releaseVersionFrom("5.2.0-beta.1"), "5.2");
+  });
+
+  it("keeps a real patch digit so a fix-up release can tag itself", () => {
+    assert.equal(releaseVersionFrom("5.3.1"), "5.3.1");
+    assert.equal(releaseVersionFrom("5.3.2-beta.1"), "5.3.2");
   });
 
   it("returns null for a version it cannot read, rather than guessing a tag", () => {

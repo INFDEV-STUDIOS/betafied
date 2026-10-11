@@ -1,7 +1,18 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { BlockPermutation } from "@minecraft/server";
 import { scrubFineDetails } from "../../packs/BP/scripts/world/chunkScrubber.js";
+
+// The refused-query and refused-write cases both report through the ambient Bedrock console, so
+// capture it rather than let those lines land in the test output.
+function captureWarnings(): { lines: string[]; restore: () => void } {
+    const lines: string[] = [];
+    const original = console.warn;
+    console.warn = (message?: unknown) => {
+        lines.push(String(message));
+    };
+    return { lines, restore: () => { console.warn = original; } };
+}
 
 interface RecordedBlock {
     typeId: string;
@@ -131,6 +142,16 @@ function bulkFillsFor(dim: TestDimension, target: string): string[] {
 }
 
 describe("Chunk Scrubber - Inverse Allowlist Enforcement", () => {
+    let warnings: { lines: string[]; restore: () => void };
+
+    beforeEach(() => {
+        warnings = captureWarnings();
+    });
+
+    afterEach(() => {
+        warnings.restore();
+    });
+
     it("scrubs post-Beta blocks that have no authentic counterpart", () => {
         const beeNest = recordingBlock("minecraft:bee_nest");
         const beehive = recordingBlock("minecraft:beehive");
@@ -259,6 +280,97 @@ describe("Chunk Scrubber - Inverse Allowlist Enforcement", () => {
         // now that a success mark keeps a chunk out of the queue until the re-verify window.
         assert.equal(drain(unloaded), false, "an unread chunk must stay queued for a retry");
         assert.deepEqual(unloaded.commands, [], "an unloaded chunk must not be filled against");
+    });
+
+    it("clears a post-Beta species' whole building set through the bulk path", () => {
+        const dim = scrubDimension(new Map<string, RecordedBlock>([
+            ["2,64,2", recordingBlock("minecraft:jungle_planks")],
+            ["3,64,2", recordingBlock("minecraft:jungle_stairs")],
+            ["4,64,2", recordingBlock("minecraft:jungle_slab")],
+            ["5,20,2", recordingBlock("minecraft:dark_oak_log")],
+            ["6,64,2", recordingBlock("minecraft:acacia_fence")],
+            ["7,64,2", recordingBlock("minecraft:crimson_stem")],
+            ["8,64,2", recordingBlock("minecraft:bamboo_sapling")]
+        ]));
+
+        scrub(dim);
+
+        // These ids are derived from the post-Beta species list rather than hand-listed, and the fine
+        // pass that used to be their only route is absent from the pinned module version - so the
+        // bulk table is the path that has to reach them.
+        for (const [id, replacement] of [
+            ["minecraft:jungle_planks", "minecraft:planks"],
+            ["minecraft:jungle_stairs", "minecraft:oak_stairs"],
+            ["minecraft:jungle_slab", "bh:wooden_slab"],
+            ["minecraft:dark_oak_log", "minecraft:oak_log"],
+            ["minecraft:acacia_fence", "bh:fence"],
+            ["minecraft:crimson_stem", "minecraft:oak_log"],
+            ["minecraft:bamboo_sapling", "minecraft:oak_sapling"]
+        ]) {
+            assert.deepEqual(
+                bulkFillsFor(dim, id),
+                [`fill 0 0 0 15 127 15 ${replacement} replace ${id}`],
+                `expected ${id} to be bulk-filled to ${replacement}`
+            );
+        }
+    });
+
+    it("keeps its success mark when the engine declines the fine query", () => {
+        const dim = scrubDimension(new Map<string, RecordedBlock>([
+            ["2,64,2", recordingBlock("minecraft:andesite")]
+        ]));
+        // The engine can refuse the reverse query outright. The chunk has still been read, so it must
+        // not be left unmarked: an unmarkable chunk is re-swept whole on every pass, forever.
+        let attempts = 0;
+        dim.getBlocks = () => {
+            attempts++;
+            throw new Error("the volume query is unavailable");
+        };
+
+        assert.equal(drain(dim), true, "a declined query must not cost the chunk its success mark");
+        assert.deepEqual(
+            bulkFillsFor(dim, "minecraft:andesite"),
+            ["fill 0 0 0 15 127 15 minecraft:stone replace minecraft:andesite"],
+            "the bulk pass must still run when the fine query is refused"
+        );
+
+        const firstSweep = warnings.lines.filter(line => line.includes("during fineScrubQuery")).length;
+        assert.ok(firstSweep > 0, "a refused query has to be reported at least once");
+
+        const attemptsBefore = attempts;
+        drain(dim);
+
+        // The refusal is structural, so one line is the whole report - but the call is still made.
+        // Latching the attempt off instead would need a per-dimension verdict, and a transient refusal
+        // would then switch off a query that works on another build.
+        assert.equal(
+            warnings.lines.filter(line => line.includes("during fineScrubQuery")).length,
+            firstSweep,
+            "a structural query refusal must not re-report on the next sweep"
+        );
+        assert.ok(attempts > attemptsBefore, "the next sweep must still attempt the query");
+    });
+
+    it("keeps its success mark when one block refuses its write", () => {
+        const stubborn = recordingBlock("minecraft:bee_nest");
+        stubborn.setType = () => {
+            throw new Error("the block could not be written");
+        };
+
+        const dim = scrubDimension(new Map<string, RecordedBlock>([["3,64,4", stubborn]]));
+
+        // One unwritable block used to fail the whole sweep, which left the chunk permanently dirty.
+        assert.equal(drain(dim), true, "one unwritable block must not wedge the whole chunk");
+
+        // Unlike the structural query refusal, this is an anomaly of one chunk, so it keeps its
+        // per-chunk cadence - silencing it here would be the bug the query latch exists to avoid.
+        const perChunkLines = () => warnings.lines.filter(line => line.includes("during fineScrub [")).length;
+        const firstSweep = perChunkLines();
+        assert.ok(firstSweep > 0, "a refused write has to be reported for its chunk");
+
+        drain(dim);
+
+        assert.ok(perChunkLines() > firstSweep, "a per-chunk write refusal must report on every sweep");
     });
 
     it("group-tests the bulk table instead of probing every entry", () => {

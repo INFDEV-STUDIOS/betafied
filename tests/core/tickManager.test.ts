@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { tickManager } from "../../packs/BP/scripts/core/tickManager.js";
-import { activeJobs, resetMocks, scheduledIntervals } from "../mocks/minecraftServer.js";
+import { activeJobs, resetMocks, scheduledIntervals, system } from "../mocks/minecraftServer.js";
 
 test("TickManager Staggered Scheduling & Lifecycle", async (t) => {
     t.beforeEach(() => {
@@ -119,4 +119,121 @@ test("TickManager Staggered Scheduling & Lifecycle", async (t) => {
         tickManager.step();
         assert.equal(runs, 1);
     });
+
+    await t.test("suppresses concurrent overlapping generator executions while in flight", () => {
+        let runs = 0;
+        let stepCount = 0;
+
+        function* longJob() {
+            yield;
+            stepCount++;
+            yield;
+            stepCount++;
+        }
+
+        tickManager.register("overlapTask", 2, () => {
+            runs++;
+            return longJob();
+        }, 0);
+
+        // Tick 0: starts longJob
+        tickManager.step();
+        assert.equal(runs, 1);
+        assert.equal(activeJobs.length, 1);
+
+        // Step once in engine: advances to first yield (before stepCount++)
+        (system as any).advanceTicks(1);
+        assert.equal(stepCount, 0);
+
+        // Tick 1 (not due)
+        tickManager.step();
+        assert.equal(runs, 1);
+
+        // Tick 2: Interval fires, but generator is still in flight -> MUST skip invocation!
+        tickManager.step();
+        assert.equal(runs, 1, "task must not be re-invoked while previous generator is in flight");
+
+        // Step second time: advances past first yield, executes stepCount++, reaches second yield
+        (system as any).advanceTicks(1);
+        assert.equal(stepCount, 1);
+        assert.equal(activeJobs.length, 1);
+
+        // Step third time: completes generator
+        (system as any).advanceTicks(1);
+        assert.equal(stepCount, 2);
+        assert.equal(activeJobs.length, 0);
+
+        // Tick 3 (not due)
+        tickManager.step();
+        assert.equal(runs, 1);
+
+        // Tick 4: Interval fires again, generator is now completed -> should start a new run
+        tickManager.step();
+        assert.equal(runs, 2, "task is invoked on next scheduled tick after generator completes");
+        assert.equal(activeJobs.length, 1);
+    });
+
+    await t.test("cancels in-flight generator job when task is unregistered", () => {
+        function* infiniteJob() {
+            while (true) {
+                yield;
+            }
+        }
+
+        tickManager.register("activeGenTask", 1, () => infiniteJob(), 0);
+        tickManager.step();
+        assert.equal(activeJobs.length, 1);
+
+        tickManager.unregister("activeGenTask");
+        assert.equal(activeJobs.length, 0, "unregistering task clears in-flight generator job");
+    });
+
+    await t.test("cancels all in-flight generator jobs when tickManager.stop() is called", () => {
+        function* infiniteJob() {
+            while (true) {
+                yield;
+            }
+        }
+
+        tickManager.register("job1", 1, () => infiniteJob(), 0);
+        tickManager.register("job2", 1, () => infiniteJob(), 0);
+        tickManager.step();
+        assert.equal(activeJobs.length, 2);
+
+        tickManager.stop();
+        assert.equal(activeJobs.length, 0, "stop() clears all in-flight generator jobs");
+    });
+
+    await t.test("recovers and clears in-flight state when a generator step throws", () => {
+        let invocations = 0;
+
+        function* faultyJob() {
+            yield;
+            throw new Error("Simulated generator step failure");
+        }
+
+        tickManager.register("faultyTask", 2, () => {
+            invocations++;
+            return faultyJob();
+        }, 0);
+
+        // Tick 0: starts generator
+        tickManager.step();
+        assert.equal(invocations, 1);
+        assert.equal(activeJobs.length, 1);
+
+        // Tick 1: reaches yield
+        (system as any).advanceTicks(1);
+        assert.equal(activeJobs.length, 1);
+
+        // Tick 2: resumes and throws, caught by JobRunner, onFinally cleans up
+        (system as any).advanceTicks(1);
+        assert.equal(activeJobs.length, 0, "failing job is untracked");
+
+        // Tick 2 scheduled interval: task runs again because onFinally cleared in-flight state
+        tickManager.step(); // tick 1
+        tickManager.step(); // tick 2
+        assert.equal(invocations, 2, "task can run again after previous generator error was handled");
+    });
 });
+

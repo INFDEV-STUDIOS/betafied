@@ -12,11 +12,6 @@ import { runCatching } from "../core/errorReporter.js";
 import { ARMOR_SLOTS } from "../core/equipmentSlots.js";
 import { isVanillaId } from "../core/betaRegistry.js";
 
-const CONFIG = Object.freeze({
-    REDUCTION_PER_POINT: 0.04,
-    MAX_REDUCTION: 0.80
-});
-
 const ARMOR_TABLE: Readonly<Record<string, number>> = Object.freeze({
     "minecraft:leather_helmet": 1, "minecraft:leather_chestplate": 3,
     "minecraft:leather_leggings": 2, "minecraft:leather_boots": 1,
@@ -88,11 +83,43 @@ export function getBaseArmorPoints(typeId: string): number {
     return 0;
 }
 
+export interface ArmorMitigationResult {
+    damageInflicted: number;
+    damageAbsorbed: number;
+    updatedRemainder: number;
+}
+
+export function computeBetaArmorMitigation(
+    incomingDamage: number,
+    defenseRating: number,
+    previousRemainder = 0
+): ArmorMitigationResult {
+    if (incomingDamage <= 0 || defenseRating <= 0) {
+        return {
+            damageInflicted: incomingDamage,
+            damageAbsorbed: 0,
+            updatedRemainder: previousRemainder
+        };
+    }
+
+    const wholeDamage = Math.floor(incomingDamage);
+    const penetrationFactor = 25 - Math.min(25, defenseRating);
+    const accumulatedUnits = wholeDamage * penetrationFactor + previousRemainder;
+
+    const damageInflicted = Math.floor(accumulatedUnits / 25);
+    const updatedRemainder = accumulatedUnits % 25;
+    const damageAbsorbed = Math.max(0, wholeDamage - damageInflicted);
+
+    return { damageInflicted, damageAbsorbed, updatedRemainder };
+}
+
 export function getEffectiveArmorPoints(player: Player): number {
     const equip = player.getComponent(EntityComponentTypes.Equippable);
     if (!equip) return 0;
 
-    let points = 0;
+    let basePointsTotal = 0;
+    let durabilityRemaining = 0;
+    let durabilityMax = 0;
 
     for (const slot of ARMOR_SLOTS) {
         const item = equip.getEquipment(slot);
@@ -101,18 +128,44 @@ export function getEffectiveArmorPoints(player: Player): number {
         const base = getBaseArmorPoints(item.typeId);
         if (!base) continue;
 
+        basePointsTotal += base;
+
         const dur = item.getComponent(ItemComponentTypes.Durability);
         if (dur && dur.maxDurability > 0) {
-            const ratio = (dur.maxDurability - dur.damage) / dur.maxDurability;
-            points += (base * ratio);
+            const currentDamage = Math.max(0, dur.damage ?? 0);
+            durabilityRemaining += Math.max(0, dur.maxDurability - currentDamage);
+            durabilityMax += dur.maxDurability;
         } else {
-            points += base;
+            durabilityRemaining += 1;
+            durabilityMax += 1;
         }
     }
-    return points;
+
+    if (basePointsTotal <= 0 || durabilityMax <= 0) return 0;
+
+    // Beta 1.7.3 InventoryPlayer.getTotalArmorValue(): ((basePoints - 1) * remainingDur) / maxDur + 1
+    const scaled = Math.floor(((basePointsTotal - 1) * durabilityRemaining) / durabilityMax) + 1;
+    return Math.max(0, Math.min(20, scaled));
 }
 
 const lastSentArmorPoints = new Map<string, number>();
+const fractionalDamageCarryovers = new Map<string, number>();
+
+export function getPlayerDamageCarryover(playerId: string): number {
+    return fractionalDamageCarryovers.get(playerId) ?? 0;
+}
+
+export function setPlayerDamageCarryover(playerId: string, remainder: number): void {
+    if (remainder <= 0) {
+        fractionalDamageCarryovers.delete(playerId);
+    } else {
+        fractionalDamageCarryovers.set(playerId, remainder);
+    }
+}
+
+export function clearPlayerDamageCarryover(playerId: string): void {
+    fractionalDamageCarryovers.delete(playerId);
+}
 
 export function updatePlayerArmorDisplay(player: Player, force = false): void {
     if (!player.isValid) return;
@@ -142,14 +195,15 @@ eventBus.onEntityHurt((ev) => {
     if (BYPASS_SOURCES.has(damageSource.cause)) return;
 
     const points = getEffectiveArmorPoints(player);
-    if (points > 0.1) {
-        const reduction = Math.min(points * CONFIG.REDUCTION_PER_POINT, CONFIG.MAX_REDUCTION);
-        const blockedDamage = damage * reduction;
+    if (points > 0) {
+        const carryover = getPlayerDamageCarryover(player.id);
+        const { damageAbsorbed, updatedRemainder } = computeBetaArmorMitigation(damage, points, carryover);
+        setPlayerDamageCarryover(player.id, updatedRemainder);
 
-        if (blockedDamage > 0) {
+        if (damageAbsorbed > 0) {
             const health = player.getComponent(EntityComponentTypes.Health);
             if (health && health.currentValue > 0) {
-                const newHp = Math.min(health.currentValue + blockedDamage, health.effectiveMax);
+                const newHp = Math.min(health.currentValue + damageAbsorbed, health.effectiveMax);
                 health.setCurrentValue(newHp);
             }
         }
@@ -167,6 +221,7 @@ eventBus.onPlayerSpawn((ev) => {
 
 eventBus.onPlayerLeave((ev) => {
     lastSentArmorPoints.delete(ev.playerId);
+    clearPlayerDamageCarryover(ev.playerId);
 });
 
 tickManager.register("armorDisplay", 5, () => {

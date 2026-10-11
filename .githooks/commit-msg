@@ -1,0 +1,11 @@
+#!/bin/sh
+# Matches the attribution trailers agent tools append, and the tool names themselves.
+set -eu
+
+msg_file="$1"
+
+if grep -iEq 'codebuff|freebuff|co-authored-by:.*(claude|anthropic|openai|copilot)|generated with .*(claude|codebuff|freebuff)' "$msg_file"; then
+  echo "commit-msg: agent attribution found in the commit message. Remove it." >&2
+  echo "See AGENTS.md, Commit Authorship." >&2
+  exit 1
+fi

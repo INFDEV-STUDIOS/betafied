@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractChangelogSection, releaseVersionFrom } from "./lib/changelog.mjs";
+import { extractChangelogSection, notesArePlaceholder, releaseVersionFrom } from "./lib/changelog.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -69,6 +69,9 @@ function main() {
   const changelog = fs.readFileSync(path.join(ROOT, "CHANGELOG.md"), "utf8");
   const section = extractChangelogSection(changelog, version);
   if (!section) fail(`CHANGELOG.md has no '## ${version}' section — write the entry before publishing`);
+  if (notesArePlaceholder(section)) {
+    fail(`CHANGELOG.md's '## ${version}' section is still the release:prepare placeholder — write the notes`);
+  }
 
   const assets = packAssets(version);
   if (assets.length === 0) {

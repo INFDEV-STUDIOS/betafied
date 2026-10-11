@@ -7,6 +7,7 @@ export const registeredAfterEvents = new Map<string, Function[]>();
 export const scheduledIntervals: { id: number; callback: Function; interval: number }[] = [];
 export const scheduledTimeouts: { id: number; callback: Function; timeout: number }[] = [];
 export const activeJobs: Generator<void, void, unknown>[] = [];
+export const activeJobEntries = new Map<number, Generator<void, void, unknown>>();
 export const mockPlayers: any[] = [];
 export const mockEntities = new Map<string, any>();
 export const mockDynamicProperties = new Map<string, any>();
@@ -19,6 +20,7 @@ export function resetMocks(): void {
     scheduledIntervals.length = 0;
     scheduledTimeouts.length = 0;
     activeJobs.length = 0;
+    activeJobEntries.clear();
     mockPlayers.length = 0;
     mockEntities.clear();
     mockDynamicProperties.clear();
@@ -195,6 +197,13 @@ const dimensions = new Map<string, MockDimension>([
 ]);
 
 export const world = {
+    timeOfDay: 0,
+    getTimeOfDay() {
+        return this.timeOfDay;
+    },
+    setTimeOfDay(time: number) {
+        this.timeOfDay = time;
+    },
     getAllPlayers() {
         return [...mockPlayers];
     },
@@ -227,11 +236,13 @@ export const world = {
         playerInteractWithBlock: createEventSignal(registeredBeforeEvents, "playerInteractWithBlock"),
         playerInteractWithEntity: createEventSignal(registeredBeforeEvents, "playerInteractWithEntity"),
         playerBreakBlock: createEventSignal(registeredBeforeEvents, "playerBreakBlock"),
+        playerPlaceBlock: createEventSignal(registeredBeforeEvents, "playerPlaceBlock"),
         itemUse: createEventSignal(registeredBeforeEvents, "itemUse"),
         chatSend: createEventSignal(registeredBeforeEvents, "chatSend")
     },
     afterEvents: {
         entitySpawn: createEventSignal(registeredAfterEvents, "entitySpawn"),
+        entityLoad: createEventSignal(registeredAfterEvents, "entityLoad"),
         entityDie: createEventSignal(registeredAfterEvents, "entityDie"),
         blockBreak: createEventSignal(registeredAfterEvents, "blockBreak"),
         entityHurt: createEventSignal(registeredAfterEvents, "entityHurt"),
@@ -283,13 +294,50 @@ export const system = {
     runJob(generator: Generator<void, void, unknown>): number {
         const id = nextRunId++;
         activeJobs.push(generator);
+        activeJobEntries.set(id, generator);
         return id;
+    },
+    clearJob(id: number): void {
+        const gen = activeJobEntries.get(id);
+        if (gen) {
+            activeJobEntries.delete(id);
+            const idx = activeJobs.indexOf(gen);
+            if (idx >= 0) activeJobs.splice(idx, 1);
+        }
     },
     clearRun(id: number): void {
         const intervalIdx = scheduledIntervals.findIndex(i => i.id === id);
         if (intervalIdx >= 0) scheduledIntervals.splice(intervalIdx, 1);
         const timeoutIdx = scheduledTimeouts.findIndex(t => t.id === id);
         if (timeoutIdx >= 0) scheduledTimeouts.splice(timeoutIdx, 1);
+    },
+    advanceTicks(ticks: number = 1): void {
+        for (let t = 0; t < ticks; t++) {
+            this.currentTick++;
+            for (let i = activeJobs.length - 1; i >= 0; i--) {
+                const job = activeJobs[i];
+                try {
+                    const res = job.next();
+                    if (res.done) {
+                        activeJobs.splice(i, 1);
+                        for (const [id, g] of activeJobEntries) {
+                            if (g === job) {
+                                activeJobEntries.delete(id);
+                                break;
+                            }
+                        }
+                    }
+                } catch {
+                    activeJobs.splice(i, 1);
+                    for (const [id, g] of activeJobEntries) {
+                        if (g === job) {
+                            activeJobEntries.delete(id);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 };
 
@@ -331,6 +379,27 @@ export const GameMode = Object.freeze({
     Spectator: "spectator"
 });
 
+export const HudElement = Object.freeze({
+    PaperDoll: 0,
+    Armor: 1,
+    ToolTips: 2,
+    TouchControls: 3,
+    Crosshair: 4,
+    Hotbar: 5,
+    Health: 6,
+    ProgressBar: 7,
+    Hunger: 8,
+    AirBubbles: 9,
+    HorseHealth: 10,
+    StatusEffects: 11,
+    ItemText: 12
+});
+
+export const HudVisibility = Object.freeze({
+    Hide: 0,
+    Reset: 1
+});
+
 export const EntityDamageCause = Object.freeze({
     fall: "fall",
     fire: "fire",
@@ -358,7 +427,8 @@ export const EntityComponentTypes = Object.freeze({
     Health: "minecraft:health",
     Variant: "minecraft:variant",
     Movement: "minecraft:movement",
-    Color: "minecraft:color"
+    Color: "minecraft:color",
+    Riding: "minecraft:riding"
 });
 
 export const ItemComponentTypes = Object.freeze({
@@ -389,6 +459,15 @@ export class Entity {
         this.isRemoved = true;
     }
 
+    kill(): void {
+        this.isValid = false;
+        this.isRemoved = true;
+    }
+
+    getVelocity(): { x: number; y: number; z: number } {
+        return { x: 0, y: 0, z: 0 };
+    }
+
     nameTag: string = "";
     rotation: { x: number; y: number } = { x: 0, y: 0 };
     public animationsPlayed: string[] = [];
@@ -411,6 +490,27 @@ export class Entity {
 
     playAnimation(animationName: string): void {
         this.animationsPlayed.push(animationName);
+    }
+
+    // Tags are on `Entity`, not on `Player`: the engine lets any entity wear one, and a destructive
+    // gate that recognizes another addon's entity has to ask a mob and an item the same question.
+    private tags = new Set<string>();
+
+    addTag(tag: string): boolean {
+        this.tags.add(tag);
+        return true;
+    }
+
+    hasTag(tag: string): boolean {
+        return this.tags.has(tag);
+    }
+
+    removeTag(tag: string): boolean {
+        return this.tags.delete(tag);
+    }
+
+    getTags(): string[] {
+        return [...this.tags];
     }
 }
 
@@ -440,8 +540,14 @@ export class Player extends Entity {
 
     public onScreenDisplay = {
         titles: [] as string[],
+        hiddenHudElements: [] as number[],
         setTitle(text: string) {
             this.titles.push(text);
+        },
+        setHudVisibility(visibility: number, hudElements?: number[]) {
+            if (visibility === HudVisibility.Hide && hudElements) {
+                this.hiddenHudElements.push(...hudElements);
+            }
         }
     };
 
@@ -451,25 +557,6 @@ export class Player extends Entity {
 
     playSound(soundId: string, options?: any): void {
         this.soundsPlayed.push({ soundId, options });
-    }
-
-    private tags = new Set<string>();
-
-    addTag(tag: string): boolean {
-        this.tags.add(tag);
-        return true;
-    }
-
-    hasTag(tag: string): boolean {
-        return this.tags.has(tag);
-    }
-
-    removeTag(tag: string): boolean {
-        return this.tags.delete(tag);
-    }
-
-    getTags(): string[] {
-        return [...this.tags];
     }
 
     runCommand(cmd: string) {

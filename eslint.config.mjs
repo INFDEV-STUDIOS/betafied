@@ -1,53 +1,7 @@
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 import minecraftLinting from "eslint-plugin-minecraft-linting";
-
-const betafiedBedrockPlugin = {
-  rules: {
-    "require-js-extension": {
-      meta: {
-        type: "problem",
-        docs: {
-          description: "Enforce .js extension on relative imports for Minecraft Bedrock runtime compatibility",
-        },
-        fixable: "code",
-        schema: [],
-        messages: {
-          missingExtension: "Relative import '{{source}}' must end with '.js' for Minecraft Bedrock runtime compatibility.",
-        },
-      },
-      create(context) {
-        function checkSource(sourceNode) {
-          if (!sourceNode || typeof sourceNode.value !== "string") return;
-          const val = sourceNode.value;
-          if (val.startsWith("./") || val.startsWith("../")) {
-            if (!val.endsWith(".js") && !val.endsWith(".json")) {
-              context.report({
-                node: sourceNode,
-                messageId: "missingExtension",
-                data: { source: val },
-                fix(fixer) {
-                  return fixer.replaceText(sourceNode, `"${val}.js"`);
-                },
-              });
-            }
-          }
-        }
-        return {
-          ImportDeclaration(node) {
-            checkSource(node.source);
-          },
-          ExportNamedDeclaration(node) {
-            if (node.source) checkSource(node.source);
-          },
-          ExportAllDeclaration(node) {
-            if (node.source) checkSource(node.source);
-          },
-        };
-      },
-    },
-  },
-};
+import betafiedBedrockPlugin from "./eslint-rules/index.mjs";
 
 export default tseslint.config(
   {
@@ -72,6 +26,12 @@ export default tseslint.config(
     rules: {
       "minecraft-linting/avoid-unnecessary-command": "error",
       "betafied/require-js-extension": "error",
+      // Pre-release surface is allowed here, but only knowingly: the rule keeps it from arriving
+      // unannounced, because a @beta member looks like any other and disappears with the module id.
+      "betafied/no-beta-api": "warn",
+      // Stale engine handles are a bug class the runtime cannot report and a test cannot see, so this
+      // one fails the build rather than leaving a warning nobody reads.
+      "betafied/no-live-reference-cache": "error",
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-explicit-any": "warn",
       "no-restricted-globals": [

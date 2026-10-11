@@ -4,7 +4,8 @@ import {
     getBaseArmorPoints,
     getEffectiveArmorPoints,
     updatePlayerArmorDisplay,
-    damageArmor
+    damageArmor,
+    computeBetaArmorMitigation
 } from "../../packs/BP/scripts/combat/armor.js";
 import {
     Player,
@@ -321,8 +322,8 @@ describe("Beta Armor Points & Titleraw HUD Display", () => {
             });
 
             assert.equal(chestDur.damage, 1);
-            // 8 armor points * 0.04 = 0.32 reduction; blocked = 4 * 0.32 = 1.28
-            assert.equal(health.currentValue, 19.28);
+            // Beta 1.7.3 EntityPlayer damage: weighted = 4 * (25 - 8) + 0 = 68; betaDamage = floor(68/25) = 2; blocked = 4 - 2 = 2.
+            assert.equal(health.currentValue, 20);
         });
 
         it("reduces armor durability on authentic Beta environmental damage (fall, fire)", () => {
@@ -416,6 +417,43 @@ describe("Beta Armor Points & Titleraw HUD Display", () => {
             });
 
             assert.equal(chestDur.damage, 0);
+        });
+    });
+
+    describe("computeBetaArmorMitigation", () => {
+        it("returns raw damage when incoming damage or defense points are zero", () => {
+            const noDmg = computeBetaArmorMitigation(0, 10, 5);
+            assert.equal(noDmg.damageInflicted, 0);
+            assert.equal(noDmg.damageAbsorbed, 0);
+            assert.equal(noDmg.updatedRemainder, 5);
+
+            const noArmor = computeBetaArmorMitigation(10, 0, 3);
+            assert.equal(noArmor.damageInflicted, 10);
+            assert.equal(noArmor.damageAbsorbed, 0);
+            assert.equal(noArmor.updatedRemainder, 3);
+        });
+
+        it("mitigates damage using authentic 1/25 ratio per point and carries remainders", () => {
+            // 4 damage with 8 armor points:
+            // penetrationFactor = 25 - 8 = 17
+            // accumulatedUnits = 4 * 17 + 0 = 68
+            // damageInflicted = floor(68 / 25) = 2
+            // updatedRemainder = 68 % 25 = 18
+            // damageAbsorbed = 4 - 2 = 2
+            const hit1 = computeBetaArmorMitigation(4, 8, 0);
+            assert.equal(hit1.damageInflicted, 2);
+            assert.equal(hit1.damageAbsorbed, 2);
+            assert.equal(hit1.updatedRemainder, 18);
+
+            // Second hit with remainder 18:
+            // accumulatedUnits = 4 * 17 + 18 = 86
+            // damageInflicted = floor(86 / 25) = 3
+            // updatedRemainder = 86 % 25 = 11
+            // damageAbsorbed = 4 - 3 = 1
+            const hit2 = computeBetaArmorMitigation(4, 8, hit1.updatedRemainder);
+            assert.equal(hit2.damageInflicted, 3);
+            assert.equal(hit2.damageAbsorbed, 1);
+            assert.equal(hit2.updatedRemainder, 11);
         });
     });
 });

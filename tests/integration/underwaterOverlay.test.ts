@@ -45,6 +45,9 @@ function fakePlayer(name: string, options: FakePlayerOptions = {}) {
         },
         dimension: {
             id: "minecraft:overworld",
+            // Real dimensions expose heightRange; the driver settles out-of-world heads against it
+            // before it would ever reach getBlock.
+            heightRange: { min: -64, max: 319 },
             getBlock() {
                 return options.headBlock;
             }
@@ -187,6 +190,47 @@ describe("Beta Water Screen Tint - sentinel driver", () => {
         drainJob(3);
 
         assert.deepEqual(wader.titles, [], "a dry player must never receive a clear");
+    });
+
+    it("answers dry for a head above the build height without consulting the block lookup", () => {
+        // Above the ceiling the engine's only possible getBlock answer is LocationOutOfWorldBoundaries,
+        // so the height guard must settle the question before the lookup ever runs.
+        const flying = fakePlayer("flying");
+        mockPlayers.push(flying);
+
+        let blockQueries = 0;
+        (flying.dimension as any).getBlock = () => {
+            blockQueries++;
+            throw new Error("LocationOutOfWorldBoundariesError");
+        };
+        (flying as any).getHeadLocation = () => ({ x: 0.5, y: 400, z: 0.5 });
+
+        assert.doesNotThrow(() => underwaterOverlayJob());
+        assert.deepEqual(flying.titles, []);
+        assert.equal(
+            blockQueries,
+            0,
+            "an out-of-bounds head must be settled by the height guard, not by a throwing lookup"
+        );
+    });
+
+    it("answers dry for a head below the world floor and lifts a tint exactly once", () => {
+        const diver = fakePlayer("diver", {
+            headBlock: { typeId: "minecraft:water", isLiquid: true }
+        });
+        mockPlayers.push(diver);
+        underwaterOverlayJob();
+        assert.equal(diver.tinted, true);
+
+        (diver as any).getHeadLocation = () => ({ x: 0.5, y: -100, z: 0.5 });
+        drainJob(6);
+
+        assert.deepEqual(
+            clears(diver),
+            [CLEAR_SENTINEL],
+            "the void is definitively dry, so it must lift the tint — unlike an unloaded chunk"
+        );
+        assert.equal(diver.tinted, false);
     });
 
     it("leaves a tinted player alone when a lookup throws", () => {

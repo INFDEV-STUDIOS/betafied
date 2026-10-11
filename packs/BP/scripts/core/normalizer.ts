@@ -177,17 +177,10 @@ export function resolvePlacerReplacement(id: string): string | undefined {
         return WOOD_SPECIES.has(prefix) ? "bh:oak_stairs" : "bh:cobblestone_stairs";
     }
 
-    if (bareId.endsWith("_slab") || bareId.startsWith("stone_block_slab")) {
-        if (bareId.includes("cobble")) {
-            return "bh:cobblestone_slab";
-        }
-        if (bareId.includes("sandstone")) {
-            return "bh:sandstone_slab";
-        }
-        if (isStoneCompound(bareId) || bareId.startsWith("stone_block_slab") || bareId === "stone_slab" || bareId === "smooth_stone_slab") {
-            return "bh:stone_slab";
-        }
-        return "bh:wooden_slab";
+    if (bareId.endsWith("_slab")) {
+        if (bareId.includes("cobble")) return "bh:cobblestone_slab";
+        if (bareId.includes("sandstone")) return "bh:sandstone_slab";
+        return isStoneCompound(bareId) ? "bh:stone_slab" : "bh:wooden_slab";
     }
 
     return undefined;

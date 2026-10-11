@@ -6,15 +6,20 @@ import { OVERWORLD_ID } from "../core/betaConstants.js";
 
 const CONFIG = Object.freeze({
     CHECK_INTERVAL: 20,
+    PLAYERS_PER_TICK: 5,
     FOG_ID: "beta"
 });
 
 const hasFog = new Set<string>();
 
 export function* fogJob(): Generator<void, void, unknown> {
-    const players = world.getAllPlayers();
+    const playerIds = world.getAllPlayers().map(p => p.id);
 
-    for (const player of players) {
+    let processed = 0;
+    for (const playerId of playerIds) {
+        const player = world.getAllPlayers().find(p => p.id === playerId);
+        if (!player || !player.isValid) continue;
+
         try {
             const name = player.name;
             const dim = player.dimension.id;
@@ -39,7 +44,11 @@ export function* fogJob(): Generator<void, void, unknown> {
                 target: player.name
             }, e);
         }
-        yield;
+
+        processed++;
+        if (processed % CONFIG.PLAYERS_PER_TICK === 0) {
+            yield;
+        }
     }
 }
 

@@ -1,0 +1,14 @@
+#!/bin/sh
+# Agent tooling and instruction files must never enter history, at any depth.
+set -eu
+
+deny='^(\.agents/|\.superpowers/|\.desloppify/|\.scratch/|\.freebuff/|docs/agents/|docs/superpowers/|CLAUDE\.md$)|(^|/)AGENTS\.md$'
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "$deny" || true)
+
+if [ -n "$blocked" ]; then
+  echo "pre-commit: agent tooling files are staged and cannot be committed:" >&2
+  printf '  %s\n' $blocked >&2
+  echo "Unstage them with: git reset -- <path>" >&2
+  exit 1
+fi
