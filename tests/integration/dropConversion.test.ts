@@ -86,13 +86,19 @@ describe("Drop conversion - picked-up items match their stack", () => {
         assert.equal(spawned[0].typeId, "bh:bow", "the ground item must be the id the inventory keeps");
     });
 
-    it("retypes a Beta food drop to its instant-eat bh item", () => {
+    it("splits a retyped food stack into the singles Beta allowed", () => {
         const { entity, spawned } = brokenDrop("minecraft:porkchop", 4);
         eventBus.dispatch("entitySpawn", { entity });
 
-        assert.equal(spawned[0]?.typeId, "bh:porkchop", "food must match the id the inventory sweeps to");
-        assert.equal(spawned[0]?.amount, 4, "whole stack rides across the respawn");
+        // bh:porkchop is unstackable, so four porkchops cannot ride across as one oversized entity:
+        // the engine would leave a stack the player can neither split nor eat. Each item drops alone.
+        assert.equal(spawned.length, 4, "an unstackable bh food must not spawn as one oversized stack");
+        for (const stack of spawned) {
+            assert.equal(stack.typeId, "bh:porkchop", "food must match the id the inventory sweeps to");
+            assert.equal(stack.amount, 1, "every split stack holds a single item");
+        }
     });
+
 
     it("converts a modern fish instead of deleting it", () => {
         const { entity, spawned, removed } = brokenDrop("minecraft:salmon");

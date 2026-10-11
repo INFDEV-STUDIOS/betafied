@@ -182,4 +182,33 @@ describe("Bedrock Natural Spawning Contract - Spawn Rules & Biome Integrity", ()
         assert.equal(tame["minecraft:is_dyeable"], undefined, "Beta wolves cannot have collars dyed");
         assert.equal(tame["minecraft:leashable"], undefined, "Beta wolves cannot be leashed");
     });
+
+    it("verifies the creeper carries a chase goal that never lands a melee hit", () => {
+        // behavior.melee_attack is how a Bedrock creeper closes the distance to its target. It is
+        // gated on the mob having an attack component, so without minecraft:attack the goal never
+        // starts and the creeper only ever explodes when the player walks into fuse range. Vanilla
+        // pairs the goal with reach_multiplier 0.0 so the chase cannot deal melee damage.
+        const path = resolve(root, "packs/BP/entities/creeper.json");
+        const components = JSON.parse(readFileSync(path, "utf-8"))["minecraft:entity"]?.components ?? {};
+        assert.ok(components["minecraft:attack"], "the creeper's melee_attack goal needs an attack component to start");
+        const melee = components["minecraft:behavior.melee_attack"];
+        assert.ok(melee, "creeper.json must keep the chase goal");
+        assert.equal(melee.reach_multiplier, 0, "Beta creepers chase but do no melee damage");
+    });
+
+    it("verifies the pig loot table caps porkchops at Beta's 0-2", () => {
+        const path = resolve(root, "packs/BP/loot_tables/entities/pig.json");
+        const content = JSON.parse(readFileSync(path, "utf-8"));
+        const porkchops = (content.pools ?? [])
+            .flatMap((pool: any) => pool.entries ?? [])
+            .filter((entry: any) => entry.name === "minecraft:porkchop");
+        assert.ok(porkchops.length > 0, "pig.json must drop porkchops");
+
+        for (const entry of porkchops) {
+            const setCount = (entry.functions ?? []).find((f: any) => f.function === "set_count");
+            assert.ok(setCount, "every porkchop entry must declare a set_count");
+            assert.equal(setCount.count.min, 0, "Beta pigs could drop no porkchop at all");
+            assert.equal(setCount.count.max, 2, "Beta pigs never dropped more than two porkchops");
+        }
+    });
 });

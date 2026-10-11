@@ -2,6 +2,19 @@
 
 Notable changes in each Betafied release. Version numbers match the behavior and resource pack manifests.
 
+## 5.4.1 — 2026-10-10
+
+5.4.1 is a fix-up for drop conversion and creeper behavior, restoring two details Beta got right.
+
+### Beta Parity
+
+- Added Beta pig loot tables, capping porkchops at Beta's 0-2 and returning the saddle from a saddled pig.
+- Changed the creeper to chase without landing a melee hit, matching Beta's explosion-only attack.
+
+### Drop Conversion
+
+- Fixed a converted drop that exceeded the target item's stack limit respawning as one oversized stack the player could not split or consume; it now splits into stack-sized entities.
+
 ## 5.4 — 2026-10-10
 
 5.4 focuses on server performance and Beta authenticity. Background maintenance now runs across ticks instead of all in one go, and armor, wolves, leaf drops, and the HUD are restored to Beta behavior.

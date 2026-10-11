@@ -1,4 +1,4 @@
-import { world, system, ItemStack, Dimension, Entity, EntityComponentTypes } from "@minecraft/server";
+import { world, system, ItemStack, Dimension, Entity, EntityComponentTypes, Vector3 } from "@minecraft/server";
 import { reportError } from "../core/errorReporter.js";
 import { isBetaEntity, isVanillaId } from "../core/betaRegistry.js";
 import { isForeignOwnedEntity } from "../core/compatibilityPolicy.js";
@@ -127,7 +127,27 @@ function handleItemDrop(entity: Entity): void {
         const dim = entity.dimension;
         entity.remove();
         const dropAmount = (itemId === "minecraft:raw_iron" || itemId === "minecraft:raw_gold") ? 1 : amount;
-        dim.spawnItem(new ItemStack(finalId, dropAmount), loc);
+        spawnStackedDrop(dim, loc, finalId, dropAmount);
+    }
+}
+
+/**
+ * Respawns a converted drop as one or more item entities that each fit the target item's stack limit.
+ *
+ * A vanilla drop can arrive as a stack the retyped item cannot hold: a pig's two or three porkchops
+ * are a valid `minecraft:porkchop` stack but several times the max of the unstackable `bh:porkchop`.
+ * Left as one entity, the oversized stack is a stack the player can neither split nor consume. The
+ * engine's `ItemStack.maxAmount` is the stack size the item JSON declares, so it stays the one owner
+ * of that fact and this needs no second table.
+ */
+function spawnStackedDrop(dim: Dimension, loc: Vector3, itemId: string, amount: number): void {
+    const maxStack = Math.max(1, new ItemStack(itemId, 1).maxAmount);
+    let remaining = amount;
+
+    while (remaining > 0) {
+        const stackSize = Math.min(remaining, maxStack);
+        dim.spawnItem(new ItemStack(itemId, stackSize), loc);
+        remaining -= stackSize;
     }
 }
 

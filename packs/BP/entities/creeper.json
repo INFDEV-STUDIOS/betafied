@@ -63,11 +63,14 @@
       "minecraft:type_family": {
         "family": ["creeper", "monster", "mob"]
       },
+      "minecraft:attack": {
+        "damage": 3
+      },
       "minecraft:behavior.melee_attack": {
-        "priority": 1,
-        "speed_multiplier": 1.0,
-        "track_target": true,
-        "require_complete_path": false
+        "priority": 4,
+        "speed_multiplier": 1.25,
+        "track_target": false,
+        "reach_multiplier": 0.0
       },
 
       "minecraft:breathable": {

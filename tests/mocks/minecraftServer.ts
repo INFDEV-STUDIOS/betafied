@@ -46,6 +46,14 @@ function createEventSignal(registry: Map<string, Function[]>, name: string) {
     };
 }
 
+// Beta forbids stacking the custom foods and the bow; cookies cap at 8. Everything else defaults to
+// the common 64, matching the item JSON the real engine reads for `maxAmount`.
+const MOCK_UNSTACKABLE_IDS = new Set([
+    "bh:apple", "bh:bread", "bh:porkchop", "bh:cooked_porkchop",
+    "bh:cod", "bh:cooked_cod", "bh:golden_apple", "bh:bow",
+    "minecraft:bow"
+]);
+
 export class ItemStack {
     typeId: string;
     amount: number;
@@ -54,6 +62,11 @@ export class ItemStack {
     constructor(typeId: string, amount: number = 1) {
         this.typeId = typeId;
         this.amount = amount;
+    }
+
+    get maxAmount(): number {
+        if (this.typeId === "bh:cookie" || this.typeId === "minecraft:cookie") return 8;
+        return MOCK_UNSTACKABLE_IDS.has(this.typeId) ? 1 : 64;
     }
 
     getComponent(componentId: string) {
